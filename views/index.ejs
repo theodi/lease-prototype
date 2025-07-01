@@ -1,0 +1,20 @@
+<div class="card">
+    <div class="card-body">
+        <h1 class="card-title text-center mb-4">Welcome</h1>
+        
+        <% if (typeof error !== 'undefined') { %>
+            <div class="alert alert-danger" role="alert" aria-live="assertive">
+                <%= error %>
+            </div>
+        <% } %>
+
+        <form action="/verify-email" method="POST" aria-label="Email verification form">
+            <div class="mb-3">
+                <label for="email" class="form-label">Enter your email to continue</label>
+                <input type="email" class="form-control" id="email" name="email" required aria-describedby="emailHelp">
+                <div id="emailHelp" class="form-text">We'll send a verification code to your email address.</div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100"><span class="visually-hidden">Send Verification Code</span>Send Verification Code</button>
+        </form>
+    </div>
+</div> 

@@ -1,0 +1,82 @@
+<div class="card mt-4">
+    <div class="card-body">
+        <h1 class="card-title mb-3">Lease Details for Unique Identifier: <%= uniqueId %></h1>
+        <div class="accordion" id="leaseAccordion">
+            <% leases.slice().reverse().forEach((lease, idx) => { %>
+                <% const leaseId = lease._id || idx; %>
+                <% const isLatest = idx === 0; %>
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading-<%= leaseId %>">
+                        <button class="accordion-button<%= isLatest ? '' : ' collapsed' %>" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-<%= leaseId %>" aria-expanded="<%= isLatest ? 'true' : 'false' %>" aria-controls="collapse-<%= leaseId %>">
+                            Reg Order: <%= lease['Reg Order'] %> | Associated Property Description ID: <%= lease['Associated Property Description ID'] %>
+                        </button>
+                    </h2>
+                    <div id="collapse-<%= leaseId %>" class="accordion-collapse collapse<%= isLatest ? ' show' : '' %>" aria-labelledby="heading-<%= leaseId %>" data-bs-parent="#leaseAccordion">
+                        <div class="accordion-body">
+                            <table class="table table-bordered">
+                                <caption class="visually-hidden">Lease record details</caption>
+                                <tbody>
+                                    <% Object.entries(lease).forEach(([key, value]) => { %>
+                                        <% if (key !== '_id' && key !== '__v' && key !== 'createdAt' && key !== 'updatedAt') { %>
+                                            <tr>
+                                                <th scope="row"><%= key %></th>
+                                                <td><%= value %></td>
+                                            </tr>
+                                        <% } %>
+                                    <% }); %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            <% }); %>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <a href="/app" class="btn btn-secondary">Back to Search</a>
+            <div id="bookmark-controls" aria-label="Bookmark controls">
+                <% if (!isBookmarked) { %>
+                    <button id="bookmark-btn" class="btn btn-primary" aria-pressed="false">
+                        <span class="visually-hidden">Bookmark this lease</span>
+                        <i class="bi bi-bookmark-plus" aria-hidden="true"></i> Bookmark
+                    </button>
+                <% } else { %>
+                    <button id="unbookmark-btn" class="btn btn-danger" aria-pressed="true">
+                        <span class="visually-hidden">Remove bookmark for this lease</span>
+                        <i class="bi bi-bookmark-dash" aria-hidden="true"></i> Remove bookmark
+                    </button>
+                <% } %>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const leaseId = '<%= uniqueId %>';
+        const controls = document.getElementById('bookmark-controls');
+        const remainingViews = document.querySelector('strong[remaining-views]');
+        function updateButton(isBookmarked) {
+            if (isBookmarked) {
+                controls.innerHTML = '<button id="unbookmark-btn" class="btn btn-danger" aria-pressed="true">\
+                    <span class="visually-hidden">Remove bookmark for this lease</span>\
+                    <i class="bi bi-bookmark-dash" aria-hidden="true"></i> Remove bookmark</button>';
+            } else {
+                controls.innerHTML = '<button id="bookmark-btn" class="btn btn-primary" aria-pressed="false">\
+                    <span class="visually-hidden">Bookmark this lease</span>\
+                    <i class="bi bi-bookmark-plus" aria-hidden="true"></i> Bookmark</button>';
+            }
+        }
+        controls.addEventListener('click', function(e) {
+            if (e.target.id === 'bookmark-btn') {
+                fetch(`/app/lease/${leaseId}/bookmark`, { method: 'POST' })
+                    .then(res => {
+                        if (res.ok) updateButton(true);
+                    });
+            } else if (e.target.id === 'unbookmark-btn') {
+                fetch(`/app/lease/${leaseId}/unbookmark`, { method: 'POST' })
+                    .then(res => {
+                        if (res.ok) updateButton(false);
+                    });
+            }
+        });
+    });
+</script> 

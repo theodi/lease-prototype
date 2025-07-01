@@ -1,0 +1,155 @@
+<div class="card">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="card-title mb-0">Lease search</h1>
+            <div class="text-muted">
+                <small>Verified as: <%= email %></small>
+            </div>
+        </div>
+
+        <div class="alert alert-info mb-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <span>Searches remaining today: <strong><%= remainingSearches %></strong></span>
+                <small>Resets at midnight</small>
+            </div>
+        </div>
+
+        <form id="address-search-form" class="mb-4" role="search" aria-label="Lease address search" autocomplete="off">
+            <div class="mb-3">
+                <label for="address" class="form-label">Enter a UK Address</label>
+                <div class="input-group">
+                    <input type="text"
+                           class="form-control form-control-lg"
+                           id="address"
+                           name="address"
+                           placeholder="e.g. 20 Hemstal Road, NW6 2AL or Clapton"
+                           required
+                           autocomplete="off"
+                           aria-describedby="addressHelp"
+                           aria-label="Search for a UK address or postcode">
+                    <button class="visually-hidden" type="submit" class="btn btn-primary btn-lg" id="search-btn">
+                        <span class="visually-hidden">Search</span>
+                        <i class="bi bi-search" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <div id="addressHelp" class="form-text">Enter a valid UK address or postcode to get information about the area</div>
+            </div>
+        </form>
+
+        <div id="results" class="mt-4 d-none" aria-live="polite" aria-atomic="true">
+            <!-- Results will be displayed here -->
+        </div>
+
+        <% if (bookmarkedLeases && bookmarkedLeases.length > 0) { %>
+            <div class="mt-4">
+                <h3>Bookmarked Leases</h3>
+                <div class="list-group">
+                    <% bookmarkedLeases.forEach(lease => { %>
+                        <div class="list-group-item list-group-item-action" style="cursor:pointer" onclick="window.location='/app/lease/<%= lease._id %>'">
+                            <strong><%= lease['Register Property Description'] || '' %></strong><br>
+                            <span><%= lease['Associated Property Description'] || '' %></span>
+                        </div>
+                    <% }); %>
+                </div>
+            </div>
+        <% } %>
+    </div>
+</div>
+
+<style>
+.input-group .btn {
+    padding-left: 2rem;
+    padding-right: 2rem;
+}
+</style>
+
+<script>
+document.getElementById('address').addEventListener('input', function(e) {
+    // Convert to uppercase and remove any non-alphanumeric characters except spaces
+    this.value = this.value.toUpperCase().replace(/[^A-Z0-9 ]/g, '');
+});
+
+function lookupPostcode(postcode) {
+    document.getElementById('address').value = postcode;
+    document.querySelector('form').submit();
+}
+
+// Debounced AJAX address lookup
+let debounceTimeout;
+const addressInput = document.getElementById('address');
+const resultsDiv = document.getElementById('results');
+
+addressInput.addEventListener('input', function() {
+    clearTimeout(debounceTimeout);
+    const query = this.value.trim();
+    if (query.length < 3) {
+        resultsDiv.classList.add('d-none');
+        resultsDiv.innerHTML = '';
+        return;
+    }
+    debounceTimeout = setTimeout(() => {
+        fetch(`/app/lease-lookup?query=${encodeURIComponent(query)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.length > 0) {
+                    resultsDiv.classList.remove('d-none');
+                    resultsDiv.innerHTML = `
+                        <h5 id="results-heading">Matching Addresses</h5>
+                        <ul class="list-group" aria-labelledby="results-heading">
+                            ${data.map(lease => `
+                                <li class="list-group-item list-group-item-action" style="cursor:pointer" tabindex="0" role="button" aria-pressed="false" onclick="window.location='/app/lease/${encodeURIComponent(lease['Unique Identifier'])}'" onkeydown="if(event.key==='Enter'){window.location='/app/lease/unique/${encodeURIComponent(lease['Unique Identifier'])}'}">
+                                    <strong>${lease['Register Property Description'] || ''}</strong><br>
+                                    <span>${lease['Associated Property Description'] || ''}</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    `;
+                } else {
+                    resultsDiv.classList.add('d-none');
+                    resultsDiv.innerHTML = '';
+                }
+            })
+            .catch(() => {
+                resultsDiv.classList.add('d-none');
+                resultsDiv.innerHTML = '';
+            });
+    }, 1000); // 1 second debounce
+});
+
+const addressForm = document.getElementById('address-search-form');
+addressForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    // Trigger the same AJAX search as input event
+    const query = addressInput.value.trim();
+    if (query.length < 3) {
+        resultsDiv.classList.add('d-none');
+        resultsDiv.innerHTML = '';
+        return;
+    }
+    fetch(`/app/lease-lookup?query=${encodeURIComponent(query)}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data && data.length > 0) {
+                resultsDiv.classList.remove('d-none');
+                resultsDiv.innerHTML = `
+                    <h5 id="results-heading">Matching Addresses</h5>
+                    <ul class="list-group" aria-labelledby="results-heading">
+                        ${data.map(lease => `
+                            <li class="list-group-item list-group-item-action" style="cursor:pointer" tabindex="0" role="button" aria-pressed="false" onclick="window.location='/app/lease/${encodeURIComponent(lease['Unique Identifier'])}'" onkeydown="if(event.key==='Enter'){window.location='/app/lease/${encodeURIComponent(lease['Unique Identifier'])}'}">
+                                <strong>${lease['Register Property Description'] || ''}</strong><br>
+                                <span>${lease['Associated Property Description'] || ''}</span>
+                            </li>
+                        `).join('')}
+                    </ul>
+                `;
+            } else {
+                resultsDiv.classList.add('d-none');
+                resultsDiv.innerHTML = '';
+            }
+        })
+        .catch(() => {
+            resultsDiv.classList.add('d-none');
+            resultsDiv.innerHTML = '';
+        });
+});
+</script> 

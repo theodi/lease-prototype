@@ -1,0 +1,239 @@
+import Lease from '../models/Lease.js';
+import User from '../models/User.js';
+import LeaseTermCache from '../models/LeaseTermCache.js';
+import OpenAI from 'openai';
+import { z } from 'zod';
+import { zodTextFormat } from 'openai/helpers/zod';
+
+import config from '../config/index.js';
+const openai = new OpenAI({ apiKey: config.openAiApiKey });
+
+const LeaseTermSchema = z.object({
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  expiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+
+// ─────────────────────────────────────────────
+// 🔍 Lease Search
+// ─────────────────────────────────────────────
+export async function lookup(req, res) {
+  try {
+    const { query } = req.query;
+    if (!query || query.length < 3) {
+      return res.json([]); // Require at least 3 chars for search
+    }
+
+    const results = await Lease.aggregate([
+      {
+        $search: {
+          index: 'default',
+          text: {
+            query,
+            path: ['Register Property Description', 'Associated Property Description']
+          }
+        }
+      },
+      { $sort: { 'Unique Identifier': 1, 'Reg Order': -1 } },
+      {
+        $group: {
+          _id: '$Unique Identifier',
+          lease: { $first: '$$ROOT' }
+        }
+      },
+      { $replaceRoot: { newRoot: '$lease' } },
+      { $limit: 5 }
+    ]);
+
+    res.json(results);
+  } catch (error) {
+    console.error('Lease lookup error:', error);
+    res.status(500).json({ error: 'Failed to lookup lease' });
+  }
+}
+
+// ─────────────────────────────────────────────
+// 🧠 Lease Term Parser
+// ─────────────────────────────────────────────
+export async function parseLeaseTerm(termStr) {
+  const cached = await LeaseTermCache.findOne({ term: termStr });
+  if (cached?.startDate && cached?.expiryDate) {
+    return {
+      startDate: new Date(cached.startDate),
+      expiryDate: new Date(cached.expiryDate),
+      source: 'ai'
+    };
+  }
+
+  let match = termStr.match(/^[\s\u00A0]*(\d{1,4})[ \u00A0]*years?(?:[ \u00A0]+from[ \u00A0]+(\d{1,2})[ \u00A0]+([A-Za-z]+)[ \u00A0]+(\d{4}))/i);
+  if (match) {
+    const years = parseInt(match[1], 10);
+    const startDate = new Date(`${match[2]} ${match[3]} ${match[4]}`);
+    if (!isNaN(startDate)) {
+      const expiryDate = new Date(startDate);
+      expiryDate.setFullYear(expiryDate.getFullYear() + years);
+      return { startDate, expiryDate, source: 'regex' };
+    }
+  }
+
+  match = termStr.match(/from(?: and including)? (\d{1,2}) ([A-Za-z]+) (\d{4}) (?:to|until|ending on|expiring on|and ending on)(?: and including)? (\d{1,2}) ([A-Za-z]+) (\d{4})/i);
+  if (match) {
+    const startDate = new Date(`${match[1]} ${match[2]} ${match[3]}`);
+    const expiryDate = new Date(`${match[4]} ${match[5]} ${match[6]}`);
+    if (!isNaN(startDate) && !isNaN(expiryDate)) {
+      return { startDate, expiryDate, source: 'regex' };
+    }
+  }
+
+  match = termStr.match(/^[\s\u00A0]*(\d{1,4})[ \u00A0]*years?/i);
+  if (match) {
+    return { years: parseInt(match[1], 10), source: 'regex' };
+  }
+
+  // Fallback to OpenAI
+  try {
+    const response = await openai.responses.parse({
+      model: "gpt-4o-2024-08-06",
+      input: [
+        {
+          role: "system",
+          content: `Extract the start and expiry dates from this lease term. 
+Return the result as JSON in the format:
+{ "startDate": "YYYY-MM-DD", "expiryDate": "YYYY-MM-DD" }.`,
+        },
+        {
+          role: "user",
+          content: `Lease term: "${termStr}"`,
+        },
+      ],
+      text: {
+        format: zodTextFormat(LeaseTermSchema, "leaseTerm"),
+      },
+    });
+
+    const { startDate, expiryDate } = response.output_parsed;
+
+    await LeaseTermCache.create({
+      term: termStr,
+      startDate: new Date(startDate),
+      expiryDate: new Date(expiryDate),
+    });
+
+    return {
+      startDate: new Date(startDate),
+      expiryDate: new Date(expiryDate),
+      source: 'ai'
+    };
+  } catch (err) {
+    console.warn(`AI lease term parsing failed for "${termStr}"`, err.message);
+  }
+
+  return null;
+}
+
+// ─────────────────────────────────────────────
+// 📖 Lease Details View
+// ─────────────────────────────────────────────
+export async function show(req, res) {
+  try {
+    const uniqueId = req.params.id;
+    const user = await User.findById(req.session.userId);
+
+    if (!req.session.searchedLeases) {
+      req.session.searchedLeases = [];
+    }
+
+    const isBookmarked = user.isLeaseBookmarked(uniqueId);
+    const alreadySearched = req.session.searchedLeases.includes(uniqueId);
+
+    if (!isBookmarked && !alreadySearched) {
+      await user.addSearch(uniqueId, false);
+      req.session.searchedLeases.push(uniqueId);
+    }
+
+    const leases = await Lease.find({ 'Unique Identifier': uniqueId })
+      .sort({ 'Reg Order': 1, 'Associated Property Description ID': 1 })
+      .lean();
+
+    if (!leases || leases.length === 0) {
+      return res.status(404).render('error', { error: 'No leases found for this Unique Identifier' });
+    }
+
+    res.render('lease-details', {
+      leases,
+      uniqueId,
+      isBookmarked
+    });
+  } catch (error) {
+    console.error('Lease details error:', error);
+    res.status(500).render('error', { error: 'Failed to load lease details' });
+  }
+}
+
+// ─────────────────────────────────────────────
+// ⭐ Derive Term via AJAX
+// ─────────────────────────────────────────────
+export async function deriveTerm(req, res) {
+  const { term } = req.body;
+  if (!term) return res.status(400).json({ error: 'Missing term' });
+
+  try {
+    const parsed = await parseLeaseTerm(term);
+    if (!parsed?.expiryDate) return res.status(200).json({ remainingTerm: null, expiryDate: null, source: null });
+
+    const now = new Date();
+    let diff = parsed.expiryDate - now;
+    let remainingTerm = 'Expired';
+    if (diff > 0) {
+      let years = parsed.expiryDate.getFullYear() - now.getFullYear();
+      let months = parsed.expiryDate.getMonth() - now.getMonth();
+      let days = parsed.expiryDate.getDate() - now.getDate();
+
+      if (days < 0) {
+        months--;
+        days += new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      }
+      if (months < 0) {
+        years--;
+        months += 12;
+      }
+
+      remainingTerm = `${years}y ${months}m ${days}d`;
+    }
+
+    res.json({
+      remainingTerm,
+      expiryDate: parsed.expiryDate.toISOString().split('T')[0],
+      source: parsed.source || 'ai'
+    });
+  } catch (err) {
+    console.error('derive-term error:', err.message);
+    res.status(500).json({ error: 'Failed to derive term' });
+  }
+}
+
+// ─────────────────────────────────────────────
+// 📌 Bookmark
+// ─────────────────────────────────────────────
+export async function bookmark(req, res) {
+  try {
+    const user = await User.findById(req.session.userId);
+    await user.bookmarkLease(req.params.id);
+    res.redirect(`/app/lease/${req.params.id}`);
+  } catch (error) {
+    console.error('Bookmark error:', error);
+    res.status(500).render('error', { error: 'Failed to bookmark lease' });
+  }
+}
+
+// ❌ Unbookmark
+export async function unbookmark(req, res) {
+  try {
+    const user = await User.findById(req.session.userId);
+    user.bookmarks = user.bookmarks.filter(id => id.toString() !== req.params.id);
+    await user.save();
+    res.redirect(`/app/lease/${req.params.id}`);
+  } catch (error) {
+    console.error('Unbookmark error:', error);
+    res.status(500).render('error', { error: 'Failed to remove bookmark' });
+  }
+}

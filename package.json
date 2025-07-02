@@ -3,22 +3,25 @@
   "version": "1.0.0",
   "description": "Email verification based access system",
   "main": "app.js",
+  "type": "module",
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "ejs": "^3.1.9",
-    "nodemailer": "^6.9.7",
-    "dotenv": "^16.3.1",
+    "connect-mongo": "^5.1.0",
     "crypto": "^1.0.1",
-    "express-session": "^1.17.3",
+    "dotenv": "^16.3.1",
+    "ejs": "^3.1.9",
+    "express": "^4.18.2",
     "express-ejs-layouts": "^2.5.1",
+    "express-session": "^1.17.3",
     "mongoose": "^8.0.3",
-    "connect-mongo": "^5.1.0"
+    "nodemailer": "^6.9.7",
+    "openai": "^5.8.2",
+    "zod": "^3.25.67"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
   }
-} 
+}

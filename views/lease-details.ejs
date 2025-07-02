@@ -24,6 +24,24 @@
                                             </tr>
                                         <% } %>
                                     <% }); %>
+                                    <tr>
+                                        <th scope="row">Remaining Term</th>
+                                        <td id="remaining-term-<%= leaseId %>">
+                                            <span class="text-muted">Calculating...</span>
+                                        </td>
+                                        </tr>
+                                        <tr>
+                                        <th scope="row">Expiry Date</th>
+                                        <td id="expiry-date-<%= leaseId %>">
+                                            <span class="text-muted">Calculating...</span>
+                                        </td>
+                                        </tr>
+                                        <tr>
+                                        <th scope="row">Derived By</th>
+                                        <td id="derived-by-<%= leaseId %>">
+                                            <span class="text-muted">Detecting...</span>
+                                        </td>
+                                        </tr>
                                 </tbody>
                             </table>
                         </div>
@@ -76,6 +94,38 @@
                     .then(res => {
                         if (res.ok) updateButton(false);
                     });
+            }
+        });
+        document.querySelectorAll('[id^="remaining-term-"]').forEach(async el => {
+            const leaseId = el.id.replace('remaining-term-', '');
+            const termCell = document.querySelector(`#collapse-${leaseId} td`);
+            const termText = Array.from(termCell.closest('table').querySelectorAll('tr'))
+            .find(row => row.querySelector('th')?.textContent === 'Term')
+            ?.querySelector('td')?.textContent?.trim();
+
+            if (!termText) return;
+
+            try {
+            const res = await fetch('/app/derive-term', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ term: termText })
+            });
+            const data = await res.json();
+
+            document.getElementById(`remaining-term-${leaseId}`).textContent =
+                data.remainingTerm || '—';
+            document.getElementById(`expiry-date-${leaseId}`).textContent =
+                data.expiryDate || '—';
+
+            const derivedEl = document.getElementById(`derived-by-${leaseId}`);
+            derivedEl.innerHTML = data.source === 'regex'
+                ? '<span class="text-success"><i class="bi bi-code-square"></i> Regex</span>'
+                : '<span class="text-info"><i class="bi bi-stars"></i> AI</span>';
+            } catch (err) {
+            document.getElementById(`remaining-term-${leaseId}`).textContent = 'Error';
+            document.getElementById(`expiry-date-${leaseId}`).textContent = 'Error';
+            document.getElementById(`derived-by-${leaseId}`).textContent = 'Error';
             }
         });
     });

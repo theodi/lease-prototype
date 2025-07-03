@@ -52,10 +52,11 @@
                 <h3>Bookmarked Leases</h3>
                 <div class="list-group">
                     <% bookmarkedLeases.forEach(lease => { %>
-                        <div class="list-group-item list-group-item-action" style="cursor:pointer" onclick="window.location='/app/lease/<%= lease._id %>'">
+                        <a  href="/app/lease/<%= encodeURIComponent(lease['Unique Identifier']) %>"
+                            class="list-group-item list-group-item-action">
                             <strong><%= lease['Register Property Description'] || '' %></strong><br>
                             <span><%= lease['Associated Property Description'] || '' %></span>
-                        </div>
+                        </a>
                     <% }); %>
                 </div>
             </div>

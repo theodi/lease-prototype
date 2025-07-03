@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import crypto from 'crypto';
 import config from '../config/index.js'; // adjust path as needed
+import Lease from '../models/Lease.js';
 
 const loginSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now },
@@ -33,7 +34,7 @@ const userSchema = new mongoose.Schema({
     count: { type: Number, default: 0 },
     lastReset: { type: Date, default: Date.now }
   },
-  bookmarks: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Lease', default: [] }]
+  bookmarks: [{ type: String, default: [] }] // storing Unique Identifier directly
 }, {
   timestamps: true
 });
@@ -100,19 +101,33 @@ userSchema.methods.getRemainingSearches = function () {
   return config.search.dailyLimit - this.dailySearchCount.count;
 };
 
-userSchema.methods.bookmarkLease = async function (leaseId) {
-  if (!this.bookmarks.includes(leaseId)) {
-    this.bookmarks.push(leaseId);
+// Check if bookmarked
+userSchema.methods.isLeaseBookmarked = function(uniqueId) {
+  return this.bookmarks.includes(uniqueId);
+};
+
+// Add a bookmark
+userSchema.methods.bookmarkLease = async function(uniqueId) {
+  if (!this.bookmarks.includes(uniqueId)) {
+    this.bookmarks.push(uniqueId);
     await this.save();
   }
 };
 
-userSchema.methods.isLeaseBookmarked = function (leaseId) {
-  return this.bookmarks.some(id => id.toString() === leaseId.toString());
-};
-
-userSchema.methods.getBookmarkedLeases = async function () {
-  return this.populate('bookmarks').then(user => user.bookmarks);
+// Get all bookmarked leases (resolve Unique Identifiers to most recent leases)
+userSchema.methods.getBookmarkedLeases = async function() {
+  const leases = await Lease.aggregate([
+    { $match: { 'Unique Identifier': { $in: this.bookmarks } } },
+    { $sort: { 'Unique Identifier': 1, 'Reg Order': -1 } },
+    {
+      $group: {
+        _id: '$Unique Identifier',
+        lease: { $first: '$$ROOT' }
+      }
+    },
+    { $replaceRoot: { newRoot: '$lease' } }
+  ]);
+  return leases;
 };
 
 // ----- Static Methods -----

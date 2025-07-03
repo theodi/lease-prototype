@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { zodTextFormat } from 'openai/helpers/zod';
 
 import config from '../config/index.js';
-const openai = new OpenAI({ apiKey: config.openAiApiKey });
+const openai = new OpenAI({ apiKey: config.openai.apiKey });
 
 const LeaseTermSchema = z.object({
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -74,6 +74,7 @@ export async function parseLeaseTerm(termStr) {
       return { startDate, expiryDate, source: 'regex' };
     }
   }
+
   match = termStr.match(/from(?: and including)? (\d{1,2}) ([A-Za-z]+) (\d{4}) (?:to|until|ending on|expiring on|and ending on)(?: and including)? (\d{1,2}) ([A-Za-z]+) (\d{4})/i);
   if (match) {
     const startDate = new Date(`${match[1]} ${match[2]} ${match[3]}`);
@@ -82,17 +83,22 @@ export async function parseLeaseTerm(termStr) {
       return { startDate, expiryDate, source: 'regex' };
     }
   }
-  /*
-  match = termStr.match(/^[\s\u00A0]*(\d{1,4})[ \u00A0]*years?/i);
-  if (match) {
-    return { years: parseInt(match[1], 10), source: 'regex' };
-  }
-    */
 
-  // Fallback to OpenAI
+  match = termStr.match(/^[\s\u00A0]*(\d{1,4})[ \u00A0]*years?[ \u00A0]+from[ \u00A0]+(\d{1,2})[ \u00A0]+([A-Za-z]+)[ \u00A0]+(\d{4})/i);
+  if (match) {
+    const years = parseInt(match[1], 10);
+    const startDate = new Date(`${match[2]} ${match[3]} ${match[4]}`);
+    if (!isNaN(startDate)) {
+      const expiryDate = new Date(startDate);
+      expiryDate.setFullYear(expiryDate.getFullYear() + years);
+      return { startDate, expiryDate, source: 'regex' };
+    }
+  }
+
+
   try {
     const response = await openai.responses.parse({
-      model: "gpt-4.1-mini",
+      model: config.openai.model,
       input: [
         {
           role: "system",
@@ -116,6 +122,7 @@ Return the result as JSON in the format:
       term: termStr,
       startDate: new Date(startDate),
       expiryDate: new Date(expiryDate),
+      model: config.openai.model,
     }).catch(err => {
       console.warn('Failed to cache AI-parsed lease term:', err.message);
     });

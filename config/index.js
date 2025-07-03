@@ -4,7 +4,10 @@ const config = {
   port: process.env.PORT || 3000,
   sessionSecret: process.env.SESSION_SECRET,
   mongodbUri: process.env.MONGODB_URI,
-  openAiApiKey: process.env.OPENAI_API_KEY || 'testing',
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY,
+    model: process.env.OPENAI_MODEL || 'gpt-4.1-mini'
+  },
   email: {
     service: process.env.EMAIL_SERVICE,
     user: process.env.EMAIL_USER,

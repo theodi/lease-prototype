@@ -55,4 +55,16 @@ router.post('/app/lookup', requireVerifiedEmail, async (req, res) => {
   }
 });
 
+// Logout route
+router.post('/logout', (req, res) => {
+  req.session.destroy(err => {
+    if (err) {
+      console.error('Logout error:', err);
+      return res.status(500).render('error', { error: 'Failed to log out' });
+    }
+    res.clearCookie('connect.sid');
+    res.redirect('/');
+  });
+});
+
 export default router;

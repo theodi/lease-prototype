@@ -4,8 +4,11 @@ import { sendVerificationCode, verifyManualCode } from '../controllers/Auth.js';
 
 const router = express.Router();
 
-// Home page
+// Home page with redirect for verified users
 router.get('/', (req, res) => {
+  if (req.session?.userId) {
+    return res.redirect('/app');
+  }
   res.render('index');
 });
 

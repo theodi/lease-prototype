@@ -2,8 +2,15 @@
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="card-title mb-0">Lease search</h1>
-            <div class="text-muted">
+            <div class="text-end">
+                <div class="text-muted">
                 <small>Verified as: <%= email %></small>
+                </div>
+                <form action="/logout" method="POST" class="d-inline">
+                <button type="submit" class="btn btn-link btn-sm text-decoration-none p-0" aria-label="Log out">
+                    Log out
+                </button>
+                </form>
             </div>
         </div>
 

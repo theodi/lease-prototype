@@ -8,6 +8,7 @@ const leaseSchema = new mongoose.Schema({
   'Region': String,
   'Associated Property Description ID': Number,
   'Associated Property Description': { type: String, index: true },
+  'Postcode': { type: String, index: true },
   'OS UPRN': Number,
   'Price Paid': String,
   'Reg Order': Number,

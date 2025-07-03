@@ -20,29 +20,124 @@ export async function lookup(req, res) {
   try {
     const { query } = req.query;
     if (!query || query.length < 3) {
-      return res.json([]); // Require at least 3 chars for search
+      return res.json([]); // Minimum 3 characters required
     }
 
-    const results = await Lease.aggregate([
-      {
-        $search: {
-          index: 'default',
-          text: {
-            query,
-            path: ['Register Property Description', 'Associated Property Description']
+    const postcodeRegex = /\b([A-Z]{1,2}\d{1,2}[A-Z]?)\s?(\d[A-Z]{2})?\b/i;
+    const match = query.match(postcodeRegex);
+    let results = [];
+
+    if (match) {
+      const outward = match[1].toUpperCase();
+      const inward = match[2] ? match[2].toUpperCase() : null;
+
+      if (inward) {
+        // ✅ Full postcode match — return all results with this postcode
+        const fullPostcode = `${outward} ${inward}`;
+        results = await Lease.aggregate([
+          { $match: { Postcode: fullPostcode } },
+          {
+            $group: {
+              _id: '$Unique Identifier',
+              lease: { $first: '$$ROOT' }
+            }
+          },
+          { $replaceRoot: { newRoot: '$lease' } },
+          {
+            $project: {
+              _id: 0,
+              'Unique Identifier': 1,
+              'Register Property Description': 1,
+              'Associated Property Description': 1,
+              'Postcode': 1
+            }
+          }
+        ]);
+      } else {
+        // 🟡 Outer postcode only — limit results to 5
+        results = await Lease.aggregate([
+          { $match: { Postcode: { $regex: `^${outward}`, $options: 'i' } } },
+          {
+            $group: {
+              _id: '$Unique Identifier',
+              lease: { $first: '$$ROOT' }
+            }
+          },
+          { $replaceRoot: { newRoot: '$lease' } },
+          { $limit: 5 },
+          {
+            $project: {
+              _id: 0,
+              'Unique Identifier': 1,
+              'Register Property Description': 1,
+              'Associated Property Description': 1,
+              'Postcode': 1
+            }
+          }
+        ]);
+      }
+    } else {
+      // 🔍 Autocomplete search — check results before falling back
+      const autoResults = await Lease.aggregate([
+        {
+          $search: {
+            index: 'addr_autocomplete',
+            text: {
+              query,
+              path: { wildcard: '*' }
+            }
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+            'Unique Identifier': 1,
+            'Register Property Description': 1,
+            'Associated Property Description': 1,
+            'Postcode': 1
           }
         }
-      },
-      { $sort: { 'Unique Identifier': 1, 'Reg Order': -1 } },
-      {
-        $group: {
-          _id: '$Unique Identifier',
-          lease: { $first: '$$ROOT' }
-        }
-      },
-      { $replaceRoot: { newRoot: '$lease' } },
-      { $limit: 5 }
-    ]);
+      ]);
+
+      const containsQuery = autoResults.some(r =>
+        (r['Register Property Description'] || '').toLowerCase().includes(query.toLowerCase()) ||
+        (r['Associated Property Description'] || '').toLowerCase().includes(query.toLowerCase())
+      );
+
+      if (autoResults.length > 0 && containsQuery) {
+        results = autoResults.slice(0, 5); // limit to 5 manually
+      } else {
+        // 🔁 Fallback to default index search
+        results = await Lease.aggregate([
+          {
+            $search: {
+              index: 'default',
+              text: {
+                query,
+                path: ['Register Property Description', 'Associated Property Description']
+              }
+            }
+          },
+          {
+            $group: {
+              _id: '$Unique Identifier',
+              lease: { $first: '$$ROOT' }
+            }
+          },
+          { $replaceRoot: { newRoot: '$lease' } },
+          { $limit: 5 },
+          {
+            $project: {
+              _id: 0,
+              'Unique Identifier': 1,
+              'Register Property Description': 1,
+              'Associated Property Description': 1,
+              'Postcode': 1
+            }
+          }
+        ]);
+      }
+    }
 
     res.json(results);
   } catch (error) {
@@ -50,6 +145,7 @@ export async function lookup(req, res) {
     res.status(500).json({ error: 'Failed to lookup lease' });
   }
 }
+
 
 // ─────────────────────────────────────────────
 // 🧠 Lease Term Parser
@@ -253,4 +349,31 @@ export async function unbookmark(req, res) {
     console.error('Unbookmark error:', error);
     res.status(500).render('error', { error: 'Failed to remove bookmark' });
   }
+}
+
+// ─────────────────────────────────────────────
+// 🧹 Postcode Extractor
+// ─────────────────────────────────────────────
+export async function populateMissingPostcodes(limit = 1000) {
+  const postcodeRegex = /\b[A-Z]{1,2}\d{1,2}[A-Z]?\s?\d[A-Z]{2}\b/i;
+
+  const leases = await Lease.find({ Postcode: { $in: [null, ''] } })
+    .limit(limit)
+    .lean();
+
+  console.log(`🔍 Found ${leases.length} leases with missing postcodes`);
+
+  for (const lease of leases) {
+    const sourceText = `${lease['Register Property Description'] || ''} ${lease['Associated Property Description'] || ''}`;
+    const match = sourceText.match(postcodeRegex);
+    if (match) {
+      const postcode = match[0].toUpperCase().replace(/\s+/, ' ').trim();
+      await Lease.updateOne(
+        { _id: lease._id },
+        { $set: { Postcode: postcode } }
+      );
+    }
+  }
+
+  console.log(`✅ Populated postcodes for ${leases.length} leases (batch limited to ${limit})`);
 }

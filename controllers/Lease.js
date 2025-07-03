@@ -74,7 +74,6 @@ export async function parseLeaseTerm(termStr) {
       return { startDate, expiryDate, source: 'regex' };
     }
   }
-
   match = termStr.match(/from(?: and including)? (\d{1,2}) ([A-Za-z]+) (\d{4}) (?:to|until|ending on|expiring on|and ending on)(?: and including)? (\d{1,2}) ([A-Za-z]+) (\d{4})/i);
   if (match) {
     const startDate = new Date(`${match[1]} ${match[2]} ${match[3]}`);
@@ -83,20 +82,21 @@ export async function parseLeaseTerm(termStr) {
       return { startDate, expiryDate, source: 'regex' };
     }
   }
-
+  /*
   match = termStr.match(/^[\s\u00A0]*(\d{1,4})[ \u00A0]*years?/i);
   if (match) {
     return { years: parseInt(match[1], 10), source: 'regex' };
   }
+    */
 
   // Fallback to OpenAI
   try {
     const response = await openai.responses.parse({
-      model: "gpt-4o-2024-08-06",
+      model: "gpt-4.1-mini",
       input: [
         {
           role: "system",
-          content: `Extract the start and expiry dates from this lease term. 
+          content: `Extract the start and expiry dates from this lease term.
 Return the result as JSON in the format:
 { "startDate": "YYYY-MM-DD", "expiryDate": "YYYY-MM-DD" }.`,
         },
@@ -112,10 +112,12 @@ Return the result as JSON in the format:
 
     const { startDate, expiryDate } = response.output_parsed;
 
-    await LeaseTermCache.create({
+    LeaseTermCache.create({
       term: termStr,
       startDate: new Date(startDate),
       expiryDate: new Date(expiryDate),
+    }).catch(err => {
+      console.warn('Failed to cache AI-parsed lease term:', err.message);
     });
 
     return {
@@ -169,6 +171,14 @@ export async function show(req, res) {
   }
 }
 
+function formatHumanTerm(years, months, days) {
+  const parts = [];
+  if (years) parts.push(`${years} Year${years !== 1 ? 's' : ''}`);
+  if (months) parts.push(`${months} Month${months !== 1 ? 's' : ''}`);
+  if (days || parts.length === 0) parts.push(`${days} Day${days !== 1 ? 's' : ''}`);
+  return parts.join(' ');
+}
+
 // ─────────────────────────────────────────────
 // ⭐ Derive Term via AJAX
 // ─────────────────────────────────────────────
@@ -197,7 +207,7 @@ export async function deriveTerm(req, res) {
         months += 12;
       }
 
-      remainingTerm = `${years}y ${months}m ${days}d`;
+      remainingTerm = formatHumanTerm(years, months, days);
     }
 
     res.json({

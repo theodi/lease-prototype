@@ -1,11 +1,16 @@
 <div class="card mt-4">
     <div class="card-body">
         <h1 class="card-title mb-3">Lease Details for Unique Identifier: <%= uniqueId %></h1>
+        <!-- Lease advisory message -->
+        <div id="lease-advice-<%= uniqueId %>" class="mb-3"></div>
+
         <div class="accordion" id="leaseAccordion">
             <% leases.slice().reverse().forEach((lease, idx) => { %>
                 <% const leaseId = lease._id || idx; %>
                 <% const isLatest = idx === 0; %>
-                <div class="accordion-item">
+                <div class="accordion-item"
+                    data-lease-id="<%= leaseId %>"
+                    data-reg-order="<%= lease['Reg Order'] || 0 %>">
                     <h2 class="accordion-header" id="heading-<%= leaseId %>">
                         <button class="accordion-button<%= isLatest ? '' : ' collapsed' %>" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-<%= leaseId %>" aria-expanded="<%= isLatest ? 'true' : 'false' %>" aria-controls="collapse-<%= leaseId %>">
                             Reg Order: <%= lease['Reg Order'] %> | Associated Property Description ID: <%= lease['Associated Property Description ID'] %>
@@ -13,36 +18,47 @@
                     </h2>
                     <div id="collapse-<%= leaseId %>" class="accordion-collapse collapse<%= isLatest ? ' show' : '' %>" aria-labelledby="heading-<%= leaseId %>" data-bs-parent="#leaseAccordion">
                         <div class="accordion-body">
+
+                            <!-- 🔹 Source Data Table -->
+                            <h5 class="mt-3">Land Registry Source Data</h5>
                             <table class="table table-bordered">
-                                <caption class="visually-hidden">Lease record details</caption>
-                                <tbody>
-                                    <% Object.entries(lease).forEach(([key, value]) => { %>
-                                        <% if (key !== '_id' && key !== '__v' && key !== 'createdAt' && key !== 'updatedAt') { %>
-                                            <tr>
-                                                <th scope="row"><%= key %></th>
-                                                <td><%= value %></td>
-                                            </tr>
-                                        <% } %>
-                                    <% }); %>
+                            <caption class="visually-hidden">Original lease data</caption>
+                            <tbody>
+                                <% Object.entries(lease).forEach(([key, value]) => { %>
+                                <% if (key !== '_id' && key !== '__v' && key !== 'createdAt' && key !== 'updatedAt') { %>
                                     <tr>
-                                        <th scope="row">Remaining Term</th>
-                                        <td id="remaining-term-<%= leaseId %>">
-                                            <span class="text-muted">Calculating...</span>
-                                        </td>
-                                        </tr>
-                                        <tr>
-                                        <th scope="row">Expiry Date</th>
-                                        <td id="expiry-date-<%= leaseId %>">
-                                            <span class="text-muted">Calculating...</span>
-                                        </td>
-                                        </tr>
-                                        <tr>
-                                        <th scope="row">Derived By</th>
-                                        <td id="derived-by-<%= leaseId %>">
-                                            <span class="text-muted">Detecting...</span>
-                                        </td>
-                                        </tr>
-                                </tbody>
+                                    <th scope="row"><%= key %></th>
+                                    <td><%= value %></td>
+                                    </tr>
+                                <% } %>
+                                <% }); %>
+                            </tbody>
+                            </table>
+
+                            <!-- 🔸 Derived Data Table -->
+                            <h5 class="mt-4">Derived Lease Information</h5>
+                            <table class="table table-bordered">
+                            <caption class="visually-hidden">Derived lease calculations</caption>
+                            <tbody>
+                                <tr>
+                                <th scope="row">Remaining Term</th>
+                                <td id="remaining-term-<%= leaseId %>">
+                                    <span class="text-muted">Calculating...</span>
+                                </td>
+                                </tr>
+                                <tr>
+                                <th scope="row">Expiry Date</th>
+                                <td id="expiry-date-<%= leaseId %>">
+                                    <span class="text-muted">Calculating...</span>
+                                </td>
+                                </tr>
+                                <tr>
+                                <th scope="row">Derived By</th>
+                                <td id="derived-by-<%= leaseId %>">
+                                    <span class="text-muted">Detecting...</span>
+                                </td>
+                                </tr>
+                            </tbody>
                             </table>
                         </div>
                     </div>
@@ -68,65 +84,126 @@
     </div>
 </div>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const leaseId = '<%= uniqueId %>';
-        const controls = document.getElementById('bookmark-controls');
-        const remainingViews = document.querySelector('strong[remaining-views]');
-        function updateButton(isBookmarked) {
-            if (isBookmarked) {
-                controls.innerHTML = '<button id="unbookmark-btn" class="btn btn-danger" aria-pressed="true">\
-                    <span class="visually-hidden">Remove bookmark for this lease</span>\
-                    <i class="bi bi-bookmark-dash" aria-hidden="true"></i> Remove bookmark</button>';
-            } else {
-                controls.innerHTML = '<button id="bookmark-btn" class="btn btn-primary" aria-pressed="false">\
-                    <span class="visually-hidden">Bookmark this lease</span>\
-                    <i class="bi bi-bookmark-plus" aria-hidden="true"></i> Bookmark</button>';
-            }
-        }
-        controls.addEventListener('click', function(e) {
-            if (e.target.id === 'bookmark-btn') {
-                fetch(`/app/lease/${leaseId}/bookmark`, { method: 'POST' })
-                    .then(res => {
-                        if (res.ok) updateButton(true);
-                    });
-            } else if (e.target.id === 'unbookmark-btn') {
-                fetch(`/app/lease/${leaseId}/unbookmark`, { method: 'POST' })
-                    .then(res => {
-                        if (res.ok) updateButton(false);
-                    });
-            }
+  document.addEventListener('DOMContentLoaded', async function () {
+    const uniqueId = '<%= uniqueId %>';
+    const controls = document.getElementById('bookmark-controls');
+    const remainingViews = document.querySelector('strong[remaining-views]');
+
+    function updateButton(isBookmarked) {
+      controls.innerHTML = isBookmarked
+        ? '<button id="unbookmark-btn" class="btn btn-danger" aria-pressed="true">\
+            <span class="visually-hidden">Remove bookmark for this lease</span>\
+            <i class="bi bi-bookmark-dash" aria-hidden="true"></i> Remove bookmark</button>'
+        : '<button id="bookmark-btn" class="btn btn-primary" aria-pressed="false">\
+            <span class="visually-hidden">Bookmark this lease</span>\
+            <i class="bi bi-bookmark-plus" aria-hidden="true"></i> Bookmark</button>';
+    }
+
+    controls.addEventListener('click', function (e) {
+      if (e.target.id === 'bookmark-btn') {
+        fetch(`/app/lease/${uniqueId}/bookmark`, { method: 'POST' }).then((res) => {
+          if (res.ok) updateButton(true);
         });
-        document.querySelectorAll('[id^="remaining-term-"]').forEach(async el => {
-            const leaseId = el.id.replace('remaining-term-', '');
-            const termCell = document.querySelector(`#collapse-${leaseId} td`);
-            const termText = Array.from(termCell.closest('table').querySelectorAll('tr'))
-            .find(row => row.querySelector('th')?.textContent === 'Term')
-            ?.querySelector('td')?.textContent?.trim();
-
-            if (!termText) return;
-
-            try {
-            const res = await fetch('/app/derive-term', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ term: termText })
-            });
-            const data = await res.json();
-
-            document.getElementById(`remaining-term-${leaseId}`).textContent =
-                data.remainingTerm || '—';
-            document.getElementById(`expiry-date-${leaseId}`).textContent =
-                data.expiryDate || '—';
-
-            const derivedEl = document.getElementById(`derived-by-${leaseId}`);
-            derivedEl.innerHTML = data.source === 'regex'
-                ? '<span class="text-success"><i class="bi bi-code-square"></i> Regex</span>'
-                : '<span class="text-info"><i class="bi bi-stars"></i> AI</span>';
-            } catch (err) {
-            document.getElementById(`remaining-term-${leaseId}`).textContent = 'Error';
-            document.getElementById(`expiry-date-${leaseId}`).textContent = 'Error';
-            document.getElementById(`derived-by-${leaseId}`).textContent = 'Error';
-            }
+      } else if (e.target.id === 'unbookmark-btn') {
+        fetch(`/app/lease/${uniqueId}/unbookmark`, { method: 'POST' }).then((res) => {
+          if (res.ok) updateButton(false);
         });
+      }
     });
-</script> 
+
+    const derivedLeases = new Map();
+
+    const leaseElements = document.querySelectorAll('[id^="remaining-term-"]');
+    await Promise.all(
+      Array.from(leaseElements).map(async (el) => {
+        const leaseId = el.id.replace('remaining-term-', '');
+        const container = document.querySelector(`[data-lease-id="${leaseId}"]`);
+        const regOrder = parseInt(container?.dataset.regOrder) || 0;
+
+        const termText = Array.from(container.querySelectorAll('tr'))
+          .find((row) => row.querySelector('th')?.textContent === 'Term')
+          ?.querySelector('td')?.textContent?.trim();
+
+        if (!termText) return;
+
+        try {
+          const res = await fetch('/app/lease/derive-term', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ term: termText }),
+          });
+          const data = await res.json();
+
+          // Update fields
+          document.getElementById(`remaining-term-${leaseId}`).textContent = data.remainingTerm || '—';
+          document.getElementById(`expiry-date-${leaseId}`).textContent = data.expiryDate
+            ? new Date(data.expiryDate).toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: 'long',
+                year: 'numeric',
+              })
+            : '—';
+
+          const derivedEl = document.getElementById(`derived-by-${leaseId}`);
+          derivedEl.innerHTML =
+            data.source === 'regex'
+              ? '<span data-bs-toggle="tooltip" title="Parsed by matching the term against a known pattern">🧩 Pattern Match</span>'
+              : '<span data-bs-toggle="tooltip" title="Parsed using AI to extract date information from the lease term">🤖 AI</span>';
+
+          // Store for advice logic
+          if (data.expiryDate) {
+            derivedLeases.set(leaseId, {
+              expiryDate: new Date(data.expiryDate),
+              regOrder,
+            });
+          }
+        } catch (err) {
+          document.getElementById(`remaining-term-${leaseId}`).textContent = 'Error';
+          document.getElementById(`expiry-date-${leaseId}`).textContent = 'Error';
+          document.getElementById(`derived-by-${leaseId}`).textContent = 'Error';
+        }
+      })
+    );
+
+    // Determine lease to base advice on
+    const bestLease = Array.from(derivedLeases.entries()).reduce((best, [id, info]) => {
+      if (!best) return { id, ...info };
+      if (
+        info.regOrder > best.regOrder ||
+        (info.regOrder === best.regOrder && info.expiryDate > best.expiryDate)
+      ) {
+        return { id, ...info };
+      }
+      return best;
+    }, null);
+
+    if (bestLease) {
+      const now = new Date();
+      let yearsLeft = bestLease.expiryDate.getFullYear() - now.getFullYear();
+      if (
+        bestLease.expiryDate.getMonth() < now.getMonth() ||
+        (bestLease.expiryDate.getMonth() === now.getMonth() &&
+          bestLease.expiryDate.getDate() < now.getDate())
+      ) {
+        yearsLeft -= 1;
+      }
+
+      const target = document.getElementById(`lease-advice-${uniqueId}`);
+      if (target) {
+        let html = '';
+        if (yearsLeft > 100) {
+          html = `<div class="alert alert-success">🎉 Your lease has over 100 years years remaining — you can relax.</div>`;
+        } else if (yearsLeft >= 80) {
+          html = `<div class="alert alert-warning">⚠️ Your lease has between 80 and 100 years remaining — you should strongly consider extending it now.</div>`;
+        } else {
+          html = `<div class="alert alert-danger">🚨 Your lease has around fewer that 80 years remaining — you should seek legal advice as soon as possible.</div>`;
+        }
+        target.innerHTML = html;
+      }
+    }
+
+    // Enable Bootstrap tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.forEach((el) => new bootstrap.Tooltip(el));
+  });
+</script>

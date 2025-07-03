@@ -1,57 +1,73 @@
-<div class="card">
-    <div class="card-body">
-        <h1 class="card-title text-center mb-4">Verification Code Sent</h1>
-        <div class="alert alert-success" role="alert" aria-live="polite">
-            <p class="mb-0">We've sent a verification code to <strong><%= email %></strong></p>
-        </div>
-        
-        <% if (isDevelopment) { %>
-            <div class="alert alert-info" role="alert" aria-live="polite">
-                <h2 class="alert-heading visually-hidden">Development Mode</h2>
-                <p class="mb-0">Your verification code is: <strong><%= code %></strong></p>
-            </div>
-        <% } %>
-        
-        <% if (typeof error !== 'undefined') { %>
-            <div class="alert alert-danger" role="alert" aria-live="assertive">
-                <%= error %>
-            </div>
-        <% } %>
+<div class="card" role="region" aria-labelledby="verifyTitle">
+  <div class="card-body">
+    <h1 class="card-title text-center mb-4" id="verifyTitle">Verification Code Sent</h1>
 
-        <form action="/verify-code" method="POST" class="mt-4" aria-label="Verification code form">
-            <input type="hidden" name="email" value="<%= email %>">
-            <div class="mb-3">
-                <label for="code" class="form-label">Enter your 6-digit verification code</label>
-                <input type="text" 
-                       class="form-control form-control-lg text-center" 
-                       id="code" 
-                       name="code" 
-                       pattern="[0-9]{6}" 
-                       maxlength="6" 
-                       required 
-                       autocomplete="off"
-                       aria-describedby="codeHelp"
-                       style="letter-spacing: 0.5em; font-size: 1.5em;">
-                <div id="codeHelp" class="form-text text-center">Enter the 6-digit code sent to your email</div>
-            </div>
-            <button type="submit" class="btn btn-primary w-100"><span class="visually-hidden">Verify</span>Verify Code</button>
-        </form>
-
-        <div class="text-center mt-3">
-            <p class="text-muted">The code will expire in 15 minutes</p>
-            <a href="/" class="btn btn-link">Back to Home</a>
-        </div>
+    <div class="alert alert-success" role="alert" aria-live="polite">
+      <p class="mb-0">We've sent a verification code to <strong><%= email %></strong></p>
     </div>
+
+    <% if (isDevelopment) { %>
+      <div class="alert alert-info" role="alert" aria-live="polite">
+        <h2 class="alert-heading visually-hidden">Development Mode</h2>
+        <p class="mb-0">Your verification code is: <strong><%= code %></strong></p>
+      </div>
+    <% } %>
+
+    <% if (typeof error !== 'undefined') { %>
+      <div class="alert alert-danger" role="alert" aria-live="assertive">
+        <%= error %>
+      </div>
+    <% } %>
+
+    <form action="/verify-code" method="POST" class="mt-4" aria-label="Verification code form">
+      <input type="hidden" name="email" value="<%= email %>">
+      <div class="mb-3">
+        <label for="code" class="form-label">Enter your 6-digit verification code</label>
+        <input type="text"
+               class="form-control form-control-lg text-center"
+               id="code"
+               name="code"
+               pattern="[0-9]{6}"
+               maxlength="6"
+               required
+               inputmode="numeric"
+               autocomplete="one-time-code"
+               aria-describedby="codeHelp"
+               aria-label="6-digit verification code"
+               style="letter-spacing: 0.5em; font-size: 1.5em;">
+        <div id="codeHelp" class="form-text text-center">
+          Enter the 6-digit code sent to your email
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary w-100">
+        <span class="visually-hidden">Submit verification code</span>
+        Verify Code
+      </button>
+    </form>
+
+    <div class="text-center mt-3">
+      <p class="text-muted">The code will expire in 15 minutes</p>
+      <a href="/" class="btn btn-link">Back to Home</a>
+    </div>
+  </div>
 </div>
 
 <script>
-document.getElementById('code').addEventListener('input', function(e) {
-    // Remove any non-numeric characters
-    this.value = this.value.replace(/[^0-9]/g, '');
-    
-    // Limit to 6 digits
-    if (this.value.length > 6) {
-        this.value = this.value.slice(0, 6);
+  // Focus cursor into the code field on page load
+  document.addEventListener('DOMContentLoaded', function () {
+    const codeInput = document.getElementById('code');
+    if (codeInput) {
+      codeInput.focus();
     }
-});
-</script> 
+
+    codeInput.addEventListener('input', function (e) {
+      // Remove any non-numeric characters
+      this.value = this.value.replace(/[^0-9]/g, '');
+
+      // Limit to 6 digits
+      if (this.value.length > 6) {
+        this.value = this.value.slice(0, 6);
+      }
+    });
+  });
+</script>

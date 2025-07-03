@@ -1,3 +1,10 @@
+<style>
+    .wrap-text {
+        word-wrap: break-word;
+        word-break: break-word;
+        white-space: normal;
+    }
+</style>
 <div class="card mt-4">
     <div class="card-body">
         <h1 class="card-title mb-3">Lease Details for Unique Identifier: <%= uniqueId %></h1>
@@ -28,7 +35,7 @@
                                 <% if (key !== '_id' && key !== '__v' && key !== 'createdAt' && key !== 'updatedAt') { %>
                                     <tr>
                                     <th scope="row"><%= key %></th>
-                                    <td><%= value %></td>
+                                    <td class="wrap-text"><%= value %></td>
                                     </tr>
                                 <% } %>
                                 <% }); %>
@@ -191,7 +198,9 @@
       const target = document.getElementById(`lease-advice-${uniqueId}`);
       if (target) {
         let html = '';
-        if (yearsLeft > 100) {
+        if (yearsLeft < 0) {
+          html = `<div class="alert alert-danger">❌ This lease has expired.</div>`;
+        } else if (yearsLeft > 100) {
           html = `<div class="alert alert-success">🎉 Your lease has over 100 years years remaining — you can relax.</div>`;
         } else if (yearsLeft >= 80) {
           html = `<div class="alert alert-warning">⚠️ Your lease has between 80 and 100 years remaining — you should strongly consider extending it now.</div>`;

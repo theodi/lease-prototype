@@ -85,10 +85,9 @@ export async function verifyManualCode(req, res) {
     user.isVerified = true;
     user.verificationCode = undefined;
     await user.addLogin(req.ip);
-
     req.session.userId = user._id;
 
-    res.render('verified', { email: user.email });
+    res.redirect('/app');
   } catch (error) {
     console.error('Error verifying code:', error);
     res.status(500).render('error', { error: 'Failed to verify code' });

@@ -64,6 +64,13 @@
 </style>
 
 <script>
+document.addEventListener('DOMContentLoaded', function () {
+    const input = document.getElementById('address');
+    if (input) {
+      input.focus();
+    }
+});
+
 document.getElementById('address').addEventListener('input', function(e) {
     // Convert to uppercase and remove any non-alphanumeric characters except spaces
     this.value = this.value.toUpperCase().replace(/[^A-Z0-9 ]/g, '');
@@ -152,4 +159,4 @@ addressForm.addEventListener('submit', function(e) {
             resultsDiv.innerHTML = '';
         });
 });
-</script> 
+</script>

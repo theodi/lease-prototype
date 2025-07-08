@@ -75,13 +75,10 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const input = document.getElementById('address');
-    if (input) {
-      input.focus();
-    }
+    if (input) input.focus();
 });
 
 document.getElementById('address').addEventListener('input', function(e) {
-    // Convert to uppercase and remove any non-alphanumeric characters except spaces
     this.value = this.value.toUpperCase().replace(/[^A-Z0-9 ]/g, '');
 });
 
@@ -90,10 +87,53 @@ function lookupPostcode(postcode) {
     document.querySelector('form').submit();
 }
 
-// Debounced AJAX address lookup
 let debounceTimeout;
+let cachedResults = [];
+let currentPostcode = '';
 const addressInput = document.getElementById('address');
 const resultsDiv = document.getElementById('results');
+
+// Filter and render results client-side when we already matched a full postcode
+function filterAndRenderResults(query) {
+    const postcodeMatch = query.match(/\b([A-Z]{1,2}\d{1,2}[A-Z]?)\s?(\d[A-Z]{2})\b/i);
+    const fullPostcode = postcodeMatch ? `${postcodeMatch[1].toUpperCase()} ${postcodeMatch[2].toUpperCase()}` : '';
+    const filterText = query.replace(fullPostcode, '').trim().toLowerCase();
+
+    const filtered = cachedResults.filter(r => {
+        if (!filterText) return true;
+
+        // Strip postcode from fields before comparing
+        const stripPostcode = str =>
+            (str || '').toLowerCase().replace(fullPostcode.toLowerCase(), '').trim();
+
+        const cleanedRegister = stripPostcode(r['Register Property Description']);
+        const cleanedAssociated = stripPostcode(r['Associated Property Description']);
+
+        return cleanedRegister.includes(filterText) || cleanedAssociated.includes(filterText);
+    });
+
+    renderResults(filtered);
+}
+
+function renderResults(results) {
+    if (results && results.length > 0) {
+        resultsDiv.classList.remove('d-none');
+        resultsDiv.innerHTML = `
+            <h5 id="results-heading">Matching Addresses</h5>
+            <ul class="list-group" aria-labelledby="results-heading">
+                ${results.map(lease => `
+                    <li class="list-group-item list-group-item-action" style="cursor:pointer" tabindex="0" role="button" aria-pressed="false" onclick="window.location='/app/lease/${encodeURIComponent(lease['Unique Identifier'])}'" onkeydown="if(event.key==='Enter'){window.location='/app/lease/${encodeURIComponent(lease['Unique Identifier'])}'}">
+                        <strong>${lease['Register Property Description'] || ''}</strong><br>
+                        <span>${lease['Associated Property Description'] || ''}</span>
+                    </li>
+                `).join('')}
+            </ul>
+        `;
+    } else {
+        resultsDiv.classList.add('d-none');
+        resultsDiv.innerHTML = '';
+    }
+}
 
 addressInput.addEventListener('input', function() {
     clearTimeout(debounceTimeout);
@@ -101,29 +141,29 @@ addressInput.addEventListener('input', function() {
     if (query.length < 3) {
         resultsDiv.classList.add('d-none');
         resultsDiv.innerHTML = '';
+        cachedResults = [];
+        currentPostcode = '';
         return;
     }
+
+    // Detect if we're still filtering the same postcode-based results
+    const postcodeMatch = query.match(/\b([A-Z]{1,2}\d{1,2}[A-Z]?)\s?(\d[A-Z]{2})\b/i);
+    const fullPostcode = postcodeMatch ? `${postcodeMatch[1].toUpperCase()} ${postcodeMatch[2].toUpperCase()}` : '';
+
+    if (cachedResults.length > 0 && fullPostcode && fullPostcode === currentPostcode) {
+        // Just filter the cached results
+        filterAndRenderResults(query);
+        return;
+    }
+
+    // Otherwise fetch fresh results
     debounceTimeout = setTimeout(() => {
         fetch(`/app/lease-lookup?query=${encodeURIComponent(query)}`)
             .then(res => res.json())
             .then(data => {
-                if (data && data.length > 0) {
-                    resultsDiv.classList.remove('d-none');
-                    resultsDiv.innerHTML = `
-                        <h5 id="results-heading">Matching Addresses</h5>
-                        <ul class="list-group" aria-labelledby="results-heading">
-                            ${data.map(lease => `
-                                <li class="list-group-item list-group-item-action" style="cursor:pointer" tabindex="0" role="button" aria-pressed="false" onclick="window.location='/app/lease/${encodeURIComponent(lease['Unique Identifier'])}'" onkeydown="if(event.key==='Enter'){window.location='/app/lease/unique/${encodeURIComponent(lease['Unique Identifier'])}'}">
-                                    <strong>${lease['Register Property Description'] || ''}</strong><br>
-                                    <span>${lease['Associated Property Description'] || ''}</span>
-                                </li>
-                            `).join('')}
-                        </ul>
-                    `;
-                } else {
-                    resultsDiv.classList.add('d-none');
-                    resultsDiv.innerHTML = '';
-                }
+                cachedResults = data;
+                currentPostcode = fullPostcode;
+                renderResults(data);
             })
             .catch(() => {
                 resultsDiv.classList.add('d-none');
@@ -135,7 +175,6 @@ addressInput.addEventListener('input', function() {
 const addressForm = document.getElementById('address-search-form');
 addressForm.addEventListener('submit', function(e) {
     e.preventDefault();
-    // Trigger the same AJAX search as input event
     const query = addressInput.value.trim();
     if (query.length < 3) {
         resultsDiv.classList.add('d-none');
@@ -145,23 +184,10 @@ addressForm.addEventListener('submit', function(e) {
     fetch(`/app/lease-lookup?query=${encodeURIComponent(query)}`)
         .then(res => res.json())
         .then(data => {
-            if (data && data.length > 0) {
-                resultsDiv.classList.remove('d-none');
-                resultsDiv.innerHTML = `
-                    <h5 id="results-heading">Matching Addresses</h5>
-                    <ul class="list-group" aria-labelledby="results-heading">
-                        ${data.map(lease => `
-                            <li class="list-group-item list-group-item-action" style="cursor:pointer" tabindex="0" role="button" aria-pressed="false" onclick="window.location='/app/lease/${encodeURIComponent(lease['Unique Identifier'])}'" onkeydown="if(event.key==='Enter'){window.location='/app/lease/${encodeURIComponent(lease['Unique Identifier'])}'}">
-                                <strong>${lease['Register Property Description'] || ''}</strong><br>
-                                <span>${lease['Associated Property Description'] || ''}</span>
-                            </li>
-                        `).join('')}
-                    </ul>
-                `;
-            } else {
-                resultsDiv.classList.add('d-none');
-                resultsDiv.innerHTML = '';
-            }
+            cachedResults = data;
+            const postcodeMatch = query.match(/\b([A-Z]{1,2}\d{1,2}[A-Z]?)\s?(\d[A-Z]{2})\b/i);
+            currentPostcode = postcodeMatch ? `${postcodeMatch[1].toUpperCase()} ${postcodeMatch[2].toUpperCase()}` : '';
+            renderResults(data);
         })
         .catch(() => {
             resultsDiv.classList.add('d-none');

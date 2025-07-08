@@ -2,6 +2,7 @@ import Lease from '../models/Lease.js';
 import User from '../models/User.js';
 import LeaseViewStat from '../models/LeaseViewStat.js';
 import LeaseTermCache from '../models/LeaseTermCache.js';
+import SearchAnalytics from '../models/SearchAnalytics.js';
 import OpenAI from 'openai';
 import { z } from 'zod';
 import { zodTextFormat } from 'openai/helpers/zod';
@@ -44,6 +45,7 @@ export async function lookup(req, res) {
 
       if (inward) {
         // ✅ Full postcode match — return all results with this postcode
+        SearchAnalytics.incrementSearchType('full_postcode');
         const fullPostcode = `${outward} ${inward}`;
         results = await Lease.aggregate([
           { $match: { Postcode: fullPostcode } },
@@ -66,6 +68,7 @@ export async function lookup(req, res) {
         ]);
       } else {
         // 🟡 Outer postcode only — limit results to 5
+        SearchAnalytics.incrementSearchType('outer_postcode');
         results = await Lease.aggregate([
           { $match: { Postcode: { $regex: `^${outward}`, $options: 'i' } } },
           {
@@ -88,6 +91,7 @@ export async function lookup(req, res) {
         ]);
       }
     } else {
+      SearchAnalytics.incrementSearchType('autocomplete');
       // 🔍 Autocomplete search — check results before falling back
       const autoResults = await Lease.aggregate([
         {
@@ -119,6 +123,7 @@ export async function lookup(req, res) {
         results = autoResults.slice(0, 5); // limit to 5 manually
       } else {
         // 🔁 Fallback to default index search
+        SearchAnalytics.incrementSearchType('fallback');
         results = await Lease.aggregate([
           {
             $search: {

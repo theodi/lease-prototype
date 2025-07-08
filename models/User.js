@@ -98,10 +98,14 @@ userSchema.methods.isLeaseBookmarked = function(uniqueId) {
 
 // Add a bookmark
 userSchema.methods.bookmarkLease = async function(uniqueId) {
-  if (!this.bookmarks.includes(uniqueId)) {
-    this.bookmarks.push(uniqueId);
-    await this.save();
+  if (this.bookmarks.includes(uniqueId)) return;
+
+  if (this.bookmarks.length >= config.bookmarks.limit) {
+    throw new Error('Bookmark limit reached');
   }
+
+  this.bookmarks.push(uniqueId);
+  await this.save();
 };
 
 // Get all bookmarked leases (resolve Unique Identifiers to most recent leases)

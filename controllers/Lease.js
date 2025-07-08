@@ -278,12 +278,17 @@ export async function show(req, res) {
     if (!leases || leases.length === 0) {
       return res.status(404).render('error', { error: 'No leases found for this Unique Identifier' });
     }
+    
+
+    const canBookmark = !isBookmarked && user.bookmarks.length < config.bookmarks.limit;
 
     res.render('lease-details', {
       leases,
       uniqueId,
-      isBookmarked
+      isBookmarked,
+      canBookmark
     });
+
   } catch (error) {
     console.error('Lease details error:', error);
     res.status(500).render('error', { error: 'Failed to load lease details' });
@@ -350,9 +355,10 @@ export async function bookmark(req, res) {
     res.redirect(`/app/lease/${req.params.id}`);
   } catch (error) {
     console.error('Bookmark error:', error);
-    res.status(500).render('error', { error: 'Failed to bookmark lease' });
+    res.status(400).render('error', { error: error.message || 'Failed to bookmark lease' });
   }
 }
+
 
 // ❌ Unbookmark
 export async function unbookmark(req, res) {

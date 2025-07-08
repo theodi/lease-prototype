@@ -75,17 +75,23 @@
         <div class="d-flex justify-content-between align-items-center mt-3">
             <a href="/app" class="btn btn-secondary">Back to Search</a>
             <div id="bookmark-controls" aria-label="Bookmark controls">
-                <% if (!isBookmarked) { %>
-                    <button id="bookmark-btn" class="btn btn-primary" aria-pressed="false">
-                        <span class="visually-hidden">Bookmark this lease</span>
-                        <i class="bi bi-bookmark-plus" aria-hidden="true"></i> Bookmark
-                    </button>
-                <% } else { %>
-                    <button id="unbookmark-btn" class="btn btn-danger" aria-pressed="true">
-                        <span class="visually-hidden">Remove bookmark for this lease</span>
-                        <i class="bi bi-bookmark-dash" aria-hidden="true"></i> Remove bookmark
-                    </button>
+              <% if (!isBookmarked) { %>
+                <button id="bookmark-btn"
+                        class="btn btn-primary"
+                        aria-pressed="false"
+                        <%= !canBookmark ? 'disabled' : '' %>>
+                  <span class="visually-hidden">Bookmark this lease</span>
+                  <i class="bi bi-bookmark-plus" aria-hidden="true"></i> Bookmark
+                </button>
+                <% if (!canBookmark) { %>
+                  <div class="form-text text-danger mt-1">You’ve reached your bookmark limit.</div>
                 <% } %>
+              <% } else { %>
+                <button id="unbookmark-btn" class="btn btn-danger" aria-pressed="true">
+                  <span class="visually-hidden">Remove bookmark for this lease</span>
+                  <i class="bi bi-bookmark-dash" aria-hidden="true"></i> Remove bookmark
+                </button>
+              <% } %>
             </div>
         </div>
     </div>

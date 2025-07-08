@@ -15,6 +15,9 @@ const config = {
   },
   search: {
     dailyLimit: parseInt(process.env.DAILY_SEARCH_LIMIT) || 10
+  },
+  bookmarks: {
+    limit: parseInt(process.env.BOOKMARK_LIMIT) || 5
   }
 };
 

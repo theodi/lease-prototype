@@ -34,6 +34,7 @@
                            autocomplete="off"
                            aria-describedby="addressHelp"
                            aria-label="Search for a UK address or postcode">
+                           <%= remainingSearches === 0 ? 'disabled' : '' %>>
                     <button class="visually-hidden" type="submit" class="btn btn-primary btn-lg" id="search-btn">
                         <span class="visually-hidden">Search</span>
                         <i class="bi bi-search" aria-hidden="true"></i>

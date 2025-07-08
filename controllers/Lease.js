@@ -23,6 +23,16 @@ export async function lookup(req, res) {
       return res.json([]); // Minimum 3 characters required
     }
 
+    const user = await User.findById(req.session.userId);
+    if (!user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const hasCredit = await user.hasCredit(true);
+    if (!hasCredit) {
+      return res.status(403).json({ error: 'You have reached your daily search limit.' });
+    }
+
     const postcodeRegex = /\b([A-Z]{1,2}\d{1,2}[A-Z]?)\s?(\d[A-Z]{2})?\b/i;
     const match = query.match(postcodeRegex);
     let results = [];
@@ -248,10 +258,16 @@ export async function show(req, res) {
     }
 
     const isBookmarked = user.isLeaseBookmarked(uniqueId);
-    const alreadySearched = req.session.searchedLeases.includes(uniqueId);
+    const alreadyViewedThisSession = req.session.searchedLeases.includes(uniqueId);
 
-    if (!isBookmarked && !alreadySearched) {
-      await user.addSearch(uniqueId, false);
+    if (!isBookmarked && !alreadyViewedThisSession) {
+      const hasAccess = await user.hasCredit();
+      if (!hasAccess) {
+        return res.status(403).render('error', {
+          error: 'You have reached your daily lease view limit.'
+        });
+      }
+
       req.session.searchedLeases.push(uniqueId);
     }
 

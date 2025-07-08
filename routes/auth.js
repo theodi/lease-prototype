@@ -33,7 +33,7 @@ router.post('/app/lookup', requireVerifiedEmail, async (req, res) => {
     const { postcode, saveHistory } = req.body;
     const user = await User.findById(req.session.userId);
 
-    await user.addSearch(postcode, saveHistory === 'on');
+    await user.checkSearchCount();
     const remainingSearches = user.getRemainingSearches();
 
     res.render('app', {

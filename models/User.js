@@ -59,44 +59,34 @@ userSchema.methods.addLogin = async function (ipAddress) {
   return this.save();
 };
 
-userSchema.methods.addSearch = async function (postcode, saveHistory = false) {
+userSchema.methods.hasCredit = async function (checkOnly = false) {
   const now = new Date();
   const lastReset = new Date(this.dailySearchCount.lastReset);
 
-  if (now.getDate() !== lastReset.getDate() ||
+  // Reset if date has changed
+  if (
+    now.getDate() !== lastReset.getDate() ||
     now.getMonth() !== lastReset.getMonth() ||
-    now.getFullYear() !== lastReset.getFullYear()) {
-    this.dailySearchCount = {
-      count: 0,
-      lastReset: now
-    };
+    now.getFullYear() !== lastReset.getFullYear()
+  ) {
+    this.dailySearchCount = { count: 0, lastReset: now };
   }
 
   if (this.dailySearchCount.count >= config.search.dailyLimit) {
-    throw new Error('Daily search limit reached');
+    return false;
   }
 
-  if (saveHistory) {
-    this.searchHistory.push({
-      postcode,
-      timestamp: now,
-      saved: true
-    });
+  if (!checkOnly) {
+    this.dailySearchCount.count += 1;
+    await this.save();
   }
 
-  this.dailySearchCount.count += 1;
-  return this.save();
+  return true;
 };
 
-userSchema.methods.getRemainingSearches = function () {
-  const now = new Date();
-  const lastReset = new Date(this.dailySearchCount.lastReset);
-
-  if (now.getDate() !== lastReset.getDate() ||
-    now.getMonth() !== lastReset.getMonth() ||
-    now.getFullYear() !== lastReset.getFullYear()) {
-    return config.search.dailyLimit;
-  }
+userSchema.methods.getRemainingSearches = async function () {
+  // Trigger a reset check (but don’t increment)
+  await this.hasCredit(true);
 
   return config.search.dailyLimit - this.dailySearchCount.count;
 };

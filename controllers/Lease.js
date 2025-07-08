@@ -269,6 +269,7 @@ export async function show(req, res) {
       }
 
       req.session.searchedLeases.push(uniqueId);
+      await user.incrementLeaseViews();
     }
 
     const leases = await Lease.find({ 'Unique Identifier': uniqueId })

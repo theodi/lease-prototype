@@ -24,6 +24,7 @@ const userSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   lastLogin: { type: Date, default: Date.now },
   loginCount: { type: Number, default: 0 },
+  leaseViews: { type: Number, default: 0 },
   loginHistory: [loginSchema],
   isVerified: { type: Boolean, default: false },
   verificationCode: {
@@ -89,6 +90,11 @@ userSchema.methods.getRemainingSearches = async function () {
   await this.hasCredit(true);
 
   return config.search.dailyLimit - this.dailySearchCount.count;
+};
+
+userSchema.methods.incrementLeaseViews = async function () {
+  this.leaseViews += 1;
+  await this.save();
 };
 
 // Check if bookmarked

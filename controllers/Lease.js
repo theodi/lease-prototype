@@ -1,5 +1,6 @@
 import Lease from '../models/Lease.js';
 import User from '../models/User.js';
+import LeaseViewStat from '../models/LeaseViewStat.js';
 import LeaseTermCache from '../models/LeaseTermCache.js';
 import OpenAI from 'openai';
 import { z } from 'zod';
@@ -271,6 +272,8 @@ export async function show(req, res) {
       req.session.searchedLeases.push(uniqueId);
       await user.incrementLeaseViews();
     }
+
+    await LeaseViewStat.recordView(uniqueId);
 
     const leases = await Lease.find({ 'Unique Identifier': uniqueId })
       .sort({ 'Reg Order': 1, 'Associated Property Description ID': 1 })

@@ -20,6 +20,17 @@ export async function sendVerificationCode(req, res) {
       return res.status(400).render('index', { error: 'Email is required' });
     }
 
+    // Check domain restriction in testing mode
+    if (config.isTesting) {
+      const allowedDomains = config.allowedDomains || []; // e.g. ['theodi.org']
+      const emailDomain = email.split('@')[1]?.toLowerCase();
+      if (!emailDomain || !allowedDomains.includes(emailDomain)) {
+        return res.status(400).render('index', {
+          error: `Only email addresses from allowed domains can be used in testing mode.`
+        });
+      }
+    }
+
     // Generate verification code
     const code = config.isDevelopment
       ? config.devVerificationCode
@@ -39,7 +50,7 @@ export async function sendVerificationCode(req, res) {
 
     if (!config.isDevelopment) {
       const mailOptions = {
-        from: config.email.user,
+        from: `"Lease Finder Tool" <${config.email.user}>`,
         to: email,
         subject: 'Your Verification Code',
         html: `

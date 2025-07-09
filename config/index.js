@@ -1,5 +1,9 @@
 const config = {
   isDevelopment: process.env.NODE_ENV === 'development',
+  isTesting: process.env.NODE_ENV === 'testing',
+  allowedDomains: process.env.ALLOWED_DOMAINS
+  ? process.env.ALLOWED_DOMAINS.split(',').map(d => d.trim().toLowerCase())
+  : [],
   devVerificationCode: process.env.DEV_VERIFICATION_CODE || '123456',
   port: process.env.PORT || 3000,
   sessionSecret: process.env.SESSION_SECRET,

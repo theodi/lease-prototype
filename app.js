@@ -107,4 +107,8 @@ app.listen(config.port, () => {
     console.log('🧪 Development mode is active');
     console.log(`🔐 Default verification code: ${config.devVerificationCode}`);
   }
+  if (config.isTesting) {
+    console.log('🧪 Testing mode is active');
+    console.log(`🔐 Only users from the following domains are permitted: ${config.allowedDomains.join(', ')}`);
+  }
 });

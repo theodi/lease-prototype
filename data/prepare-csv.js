@@ -1,4 +1,3 @@
-
 import fs from 'fs';
 import { parse } from 'csv-parse';
 import { stringify } from 'csv-stringify';
@@ -22,7 +21,6 @@ const FIELD_MAP = {
   'Alienation Clause Indicator': 'aci'
 };
 
-// Utility: Extract postcode from address fields
 function extractPostcode(originalRow) {
   const text = `${originalRow['Register Property Description'] || ''} ${originalRow['Associated Property Description'] || ''}`;
   const postcodeRegex = /\b[A-Z]{1,2}\d{1,2}[A-Z]?\s?\d[A-Z]{2}\b/i;
@@ -30,7 +28,18 @@ function extractPostcode(originalRow) {
   return match ? match[0].toUpperCase().replace(/\s+/, ' ').trim() : null;
 }
 
+function extractYearMonthFromFilename(filename) {
+  const match = filename.match(/_(\d{4})_(\d{2})/);
+  return match ? `${match[1]}-${match[2]}` : null;
+}
+
 async function processCSV(inputPath, outputBasePath) {
+  const releaseDate = extractYearMonthFromFilename(inputPath);
+  if (!releaseDate) {
+    console.error('❌ Could not extract release date from filename. Expected format: LEASES_FULL_YYYY_MM.csv');
+    process.exit(1);
+  }
+
   const parser = fs.createReadStream(inputPath, { highWaterMark: 1024 * 1024 }).pipe(
     parse({ columns: true, skip_empty_lines: true })
   );
@@ -40,6 +49,12 @@ async function processCSV(inputPath, outputBasePath) {
   let rowCount = 0;
   let output, stringifier;
   let headerKeys;
+  const seenUIDs = new Set();
+
+  // LeaseTracker CSV
+  const trackerOutput = fs.createWriteStream(outputBasePath.replace(/\.csv$/, '_tracker.csv'));
+  const trackerStringifier = stringify({ header: true, columns: ['uid', 'lastUpdated'] });
+  trackerStringifier.pipe(trackerOutput);
 
   function getOutputPath(base, idx) {
     const ext = path.extname(base);
@@ -65,15 +80,17 @@ async function processCSV(inputPath, outputBasePath) {
   }
 
   for await (const originalRow of parser) {
-    // Drop 'Tenure' and map fields to short keys
     const row = {};
-
     for (const [originalKey, shortKey] of Object.entries(FIELD_MAP)) {
       row[shortKey] = originalRow[originalKey] || '';
     }
-
-    // Add derived fields
     row.pc = extractPostcode(originalRow);
+
+    const uid = row.uid;
+    if (uid && !seenUIDs.has(uid)) {
+      trackerStringifier.write({ uid, lastUpdated: releaseDate });
+      seenUIDs.add(uid);
+    }
 
     if (!headerKeys) {
       headerKeys = Object.keys(row);
@@ -92,19 +109,25 @@ async function processCSV(inputPath, outputBasePath) {
     rowCount++;
   }
 
+  // Finalise lease CSV
   if (stringifier) {
     stringifier.end();
     await once(stringifier, 'finish');
   }
   if (output) output.end();
 
-  console.log('✅ Finished writing split CSV files.');
+  // Finalise tracker CSV
+  trackerStringifier.end();
+  await once(trackerStringifier, 'finish');
+  trackerOutput.end();
+
+  console.log('✅ Finished writing split lease files and LeaseTracker file.');
 }
 
-// Usage: node prepare-csv.js input.csv output.csv
+// Usage: node prepare-csv.js LEASES_FULL_2025_05.csv leases_output.csv
 const [,, inputPath, outputBasePath] = process.argv;
 if (!inputPath || !outputBasePath) {
-  console.error('Usage: node prepare-csv.js input.csv output.csv');
+  console.error('Usage: node prepare-csv.js LEASES_FULL_YYYY_MM.csv leases_output.csv');
   process.exit(1);
 }
 

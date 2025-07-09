@@ -2,11 +2,11 @@ import mongoose from 'mongoose';
 
 const leaseSchema = new mongoose.Schema({
   uid: { type: String, index: true },
-  rpd: { type: String, index: true },
+  rpd: String,
   cty: String,
   rgn: String,
   apid: Number,
-  apd: { type: String, index: true },
+  apd: String,
   ro: Number,
   dol: String,
   term: String,
@@ -50,11 +50,6 @@ leaseSchema.virtual('Alienation Clause Indicator').get(function () {
 });
 leaseSchema.virtual('Postcode').get(function () {
   return this.pc;
-});
-
-leaseSchema.index({
-  rpd: 'text',
-  apd: 'text'
 });
 
 // Static method to remap keys using virtual aliases

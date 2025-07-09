@@ -13,7 +13,7 @@ const requireVerifiedEmail = (req, res, next) => {
 router.get('/app', requireVerifiedEmail, async (req, res) => {
   try {
     const user = await User.findById(req.session.userId);
-    const remainingSearches = user.getRemainingSearches();
+    const remainingSearches = await user.getRemainingSearches();
     const bookmarkedLeases = await user.getBookmarkedLeases();
 
     res.render('app', {
@@ -30,11 +30,10 @@ router.get('/app', requireVerifiedEmail, async (req, res) => {
 // Manual postcode search logging
 router.post('/app/lookup', requireVerifiedEmail, async (req, res) => {
   try {
-    const { postcode, saveHistory } = req.body;
     const user = await User.findById(req.session.userId);
 
     await user.checkSearchCount();
-    const remainingSearches = user.getRemainingSearches();
+    const remainingSearches = await user.getRemainingSearches();
 
     res.render('app', {
       email: user.email,

@@ -117,17 +117,17 @@ userSchema.methods.bookmarkLease = async function(uniqueId) {
 // Get all bookmarked leases (resolve Unique Identifiers to most recent leases)
 userSchema.methods.getBookmarkedLeases = async function() {
   const leases = await Lease.aggregate([
-    { $match: { 'Unique Identifier': { $in: this.bookmarks } } },
-    { $sort: { 'Unique Identifier': 1, 'Reg Order': -1 } },
+    { $match: { 'uid': { $in: this.bookmarks } } },
+    { $sort: { 'uid': 1, 'ro': -1 } },
     {
       $group: {
-        _id: '$Unique Identifier',
+        _id: '$uid',
         lease: { $first: '$$ROOT' }
       }
     },
     { $replaceRoot: { newRoot: '$lease' } }
   ]);
-  return leases;
+  return Lease.remapLeases(leases);
 };
 
 // ----- Static Methods -----

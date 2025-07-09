@@ -4,8 +4,8 @@
   },
   "storedSource": {
     "include": [
-      "Associated Property Description",
-      "Register Property Description"
+      "apd",
+      "rpd"
     ]
   }
 }

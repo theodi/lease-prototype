@@ -48,10 +48,10 @@ export async function lookup(req, res) {
         SearchAnalytics.incrementSearchType('full_postcode');
         const fullPostcode = `${outward} ${inward}`;
         results = await Lease.aggregate([
-          { $match: { Postcode: fullPostcode } },
+          { $match: { pc: fullPostcode } },
           {
             $group: {
-              _id: '$Unique Identifier',
+              _id: '$uid',
               lease: { $first: '$$ROOT' }
             }
           },
@@ -59,10 +59,10 @@ export async function lookup(req, res) {
           {
             $project: {
               _id: 0,
-              'Unique Identifier': 1,
-              'Register Property Description': 1,
-              'Associated Property Description': 1,
-              'Postcode': 1
+              uid: 1,
+              rpd: 1,
+              apd: 1,
+              pc: 1
             }
           }
         ]);
@@ -70,22 +70,15 @@ export async function lookup(req, res) {
         // 🟡 Outer postcode only — limit results to 5
         SearchAnalytics.incrementSearchType('outer_postcode');
         results = await Lease.aggregate([
-          { $match: { Postcode: { $regex: `^${outward}`, $options: 'i' } } },
-          {
-            $group: {
-              _id: '$Unique Identifier',
-              lease: { $first: '$$ROOT' }
-            }
-          },
-          { $replaceRoot: { newRoot: '$lease' } },
-          { $limit: 5 },
+          { $match: { pc: { $regex: `^${outward}`, $options: 'i' } } },
+          { $limit: 20 },
           {
             $project: {
               _id: 0,
-              'Unique Identifier': 1,
-              'Register Property Description': 1,
-              'Associated Property Description': 1,
-              'Postcode': 1
+              uid: 1,
+              rpd: 1,
+              apd: 1,
+              pc: 1
             }
           }
         ]);
@@ -103,20 +96,21 @@ export async function lookup(req, res) {
             }
           }
         },
+        { $limit: 20 },
         {
           $project: {
             _id: 0,
-            'Unique Identifier': 1,
-            'Register Property Description': 1,
-            'Associated Property Description': 1,
-            'Postcode': 1
+            uid: 1,
+            rpd: 1,
+            apd: 1,
+            pc: 1
           }
         }
       ]);
 
       const containsQuery = autoResults.some(r =>
-        (r['Register Property Description'] || '').toLowerCase().includes(query.toLowerCase()) ||
-        (r['Associated Property Description'] || '').toLowerCase().includes(query.toLowerCase())
+        (r.rpd || '').toLowerCase().includes(query.toLowerCase()) ||
+        (r.apd || '').toLowerCase().includes(query.toLowerCase())
       );
 
       if (autoResults.length > 0 && containsQuery) {
@@ -130,36 +124,39 @@ export async function lookup(req, res) {
               index: 'default',
               text: {
                 query,
-                path: ['Register Property Description', 'Associated Property Description']
+                path: ['rpd', 'apd' ]
               }
             }
           },
-          {
-            $group: {
-              _id: '$Unique Identifier',
-              lease: { $first: '$$ROOT' }
-            }
-          },
-          { $replaceRoot: { newRoot: '$lease' } },
-          { $limit: 5 },
+          { $limit: 20 },
           {
             $project: {
               _id: 0,
-              'Unique Identifier': 1,
-              'Register Property Description': 1,
-              'Associated Property Description': 1,
-              'Postcode': 1
+              uid: 1,
+              rpd: 1,
+              apd: 1,
+              pc: 1
             }
           }
         ]);
       }
     }
 
-    res.json(results);
+    res.json(results.map(mapLeaseToVirtual));
   } catch (error) {
     console.error('Lease lookup error:', error);
     res.status(500).json({ error: 'Failed to lookup lease' });
   }
+}
+
+function mapLeaseToVirtual(lease) {
+  return {
+    'Unique Identifier': lease.uid,
+    'Register Property Description': lease.rpd,
+    'Associated Property Description': lease.apd,
+    'Postcode': lease.pc,
+    ...lease // optionally include other fields
+  };
 }
 
 
@@ -280,14 +277,15 @@ export async function show(req, res) {
 
     await LeaseViewStat.recordView(uniqueId);
 
-    const leases = await Lease.find({ 'Unique Identifier': uniqueId })
-      .sort({ 'Reg Order': 1, 'Associated Property Description ID': 1 })
+    const rawleases = await Lease.find({ 'uid': uniqueId })
+      .sort({ 'ro': 1, 'apid': 1 })
       .lean();
 
-    if (!leases || leases.length === 0) {
+    if (!rawleases || rawleases.length === 0) {
       return res.status(404).render('error', { error: 'No leases found for this Unique Identifier' });
     }
-    
+
+    const leases = Lease.remapLeases(rawleases);
 
     const canBookmark = !isBookmarked && user.bookmarks.length < config.bookmarks.limit;
 
@@ -380,31 +378,4 @@ export async function unbookmark(req, res) {
     console.error('Unbookmark error:', error);
     res.status(500).render('error', { error: 'Failed to remove bookmark' });
   }
-}
-
-// ─────────────────────────────────────────────
-// 🧹 Postcode Extractor
-// ─────────────────────────────────────────────
-export async function populateMissingPostcodes(limit = 1000) {
-  const postcodeRegex = /\b[A-Z]{1,2}\d{1,2}[A-Z]?\s?\d[A-Z]{2}\b/i;
-
-  const leases = await Lease.find({ Postcode: { $in: [null, ''] } })
-    .limit(limit)
-    .lean();
-
-  console.log(`🔍 Found ${leases.length} leases with missing postcodes`);
-
-  for (const lease of leases) {
-    const sourceText = `${lease['Register Property Description'] || ''} ${lease['Associated Property Description'] || ''}`;
-    const match = sourceText.match(postcodeRegex);
-    if (match) {
-      const postcode = match[0].toUpperCase().replace(/\s+/, ' ').trim();
-      await Lease.updateOne(
-        { _id: lease._id },
-        { $set: { Postcode: postcode } }
-      );
-    }
-  }
-
-  console.log(`✅ Populated postcodes for ${leases.length} leases (batch limited to ${limit})`);
 }

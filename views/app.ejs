@@ -33,14 +33,14 @@
                            required
                            autocomplete="off"
                            aria-describedby="addressHelp"
-                           aria-label="Search for a UK address or postcode">
+                           aria-label="Search for a UK address or postcode"
                            <%= remainingSearches === 0 ? 'disabled' : '' %>>
                     <button class="visually-hidden" type="submit" class="btn btn-primary btn-lg" id="search-btn">
                         <span class="visually-hidden">Search</span>
                         <i class="bi bi-search" aria-hidden="true"></i>
                     </button>
                 </div>
-                <div id="addressHelp" class="form-text">Enter a valid UK address or postcode to get information about the area</div>
+                <div id="addressHelp" class="form-text">Enter a valid UK post or start of address (full postcode is best)</div>
             </div>
         </form>
 
@@ -62,6 +62,22 @@
                 </div>
             </div>
         <% } %>
+
+        <% if (recentlyViewedLeases && recentlyViewedLeases.length > 0) { %>
+            <div class="mt-4">
+                <h3>Recently Viewed This Session</h3>
+                <div class="list-group">
+                    <% recentlyViewedLeases.forEach(lease => { %>
+                        <a href="/app/lease/<%= encodeURIComponent(lease.uid) %>"
+                        class="list-group-item list-group-item-action">
+                            <strong><%= lease.rpd || '' %></strong><br>
+                            <span><%= lease.apd || '' %></span>
+                        </a>
+                    <% }); %>
+                </div>
+            </div>
+        <% } %>
+
     </div>
 </div>
 

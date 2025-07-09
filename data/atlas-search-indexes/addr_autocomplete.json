@@ -2,7 +2,7 @@
   "mappings": {
     "dynamic": false,
     "fields": {
-      "Associated Property Description": {
+      "apd": {
         "analyzer": "autocomplete",
         "type": "string"
       },

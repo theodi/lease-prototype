@@ -14,7 +14,6 @@ import leaseRoutes from './routes/lease.js';
 
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { populateMissingPostcodes } from './controllers/Lease.js';
 
 const app = express();
 
@@ -26,9 +25,6 @@ const __dirname = dirname(__filename);
 mongoose.connect(config.mongodbUri)
   .then(() => {
     console.log('✅ Connected to MongoDB');
-    populateMissingPostcodes().catch(err =>
-      console.warn('Postcode population failed:', err.message)
-    );
   })
   .catch(err => console.error('❌ MongoDB connection error:', err));
 

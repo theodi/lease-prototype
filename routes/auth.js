@@ -1,6 +1,7 @@
 // routes/auth.js
 import express from 'express';
 import User from '../models/User.js';
+import Lease from '../models/Lease.js';
 
 const router = express.Router();
 
@@ -16,10 +17,35 @@ router.get('/app', requireVerifiedEmail, async (req, res) => {
     const remainingSearches = await user.getRemainingSearches();
     const bookmarkedLeases = await user.getBookmarkedLeases();
 
+    // Recently viewed leases (from session)
+    const recentlyViewedIds = (req.session.searchedLeases || []).reverse(); // limit to last 5, newest first
+
+    const recentlyViewedLeases = recentlyViewedIds.length
+      ? await Lease.aggregate([
+          { $match: { uid: { $in: recentlyViewedIds } } },
+          { $sort: { ro: -1 } }, // pick latest version of each
+          {
+            $group: {
+              _id: '$uid',
+              lease: { $first: '$$ROOT' }
+            }
+          },
+          { $replaceRoot: { newRoot: '$lease' } },
+          { $project: {
+              uid: 1,
+              rpd: 1,
+              apd: 1,
+              pc: 1
+            }
+          }
+        ])
+      : [];
+
     res.render('app', {
       email: user.email,
       remainingSearches,
-      bookmarkedLeases
+      bookmarkedLeases,
+      recentlyViewedLeases
     });
   } catch (error) {
     console.error('Error loading app page:', error);

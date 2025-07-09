@@ -1,28 +1,86 @@
 import mongoose from 'mongoose';
 
 const leaseSchema = new mongoose.Schema({
-  'Unique Identifier': { type: String, index: true },
-  'Register Property Description': { type: String, index: true },
-  'County': String,
-  'Region': String,
-  'Associated Property Description ID': Number,
-  'Associated Property Description': { type: String, index: true },
-  'Postcode': { type: String, index: true },
-  'RecordHash': { type: String, index: true },
-  'OS UPRN': Number,
-  'Price Paid': String,
-  'Reg Order': Number,
-  'Date of Lease': String,
-  'Term': String,
-  'Alienation Clause Indicator': String
+  uid: { type: String, index: true },
+  rpd: { type: String, index: true },
+  cty: String,
+  rgn: String,
+  apid: Number,
+  apd: { type: String, index: true },
+  ro: Number,
+  dol: String,
+  term: String,
+  aci: String,
+  pc: { type: String, index: true },
+  hash: { type: String, index: true }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+leaseSchema.virtual('Unique Identifier').get(function () {
+  return this.uid;
+});
+leaseSchema.virtual('Register Property Description').get(function () {
+  return this.rpd;
+});
+leaseSchema.virtual('County').get(function () {
+  return this.cty;
+});
+leaseSchema.virtual('Region').get(function () {
+  return this.rgn;
+});
+leaseSchema.virtual('Associated Property Description ID').get(function () {
+  return this.apid;
+});
+leaseSchema.virtual('Associated Property Description').get(function () {
+  return this.apd;
+});
+leaseSchema.virtual('Reg Order').get(function () {
+  return this.ro;
+});
+leaseSchema.virtual('Date of Lease').get(function () {
+  return this.dol;
+});
+leaseSchema.virtual('Term').get(function () {
+  return this.term;
+});
+leaseSchema.virtual('Alienation Clause Indicator').get(function () {
+  return this.aci;
+});
+leaseSchema.virtual('Postcode').get(function () {
+  return this.pc;
+});
+leaseSchema.virtual('RecordHash').get(function () {
+  return this.hash;
 });
 
 leaseSchema.index({
-  'Register Property Description': 'text',
-  'Associated Property Description': 'text'
+  rpd: 'text',
+  apd: 'text'
 });
+// Static method to remap keys using virtual aliases
+leaseSchema.statics.remapLeases = function (leases) {
+  const mapOne = lease => ({
+    '_id': lease._id,
+    'Unique Identifier': lease.uid,
+    'Register Property Description': lease.rpd,
+    'County': lease.cty,
+    'Region': lease.rgn,
+    'Associated Property Description ID': lease.apid,
+    'Associated Property Description': lease.apd,
+    'Reg Order': lease.ro,
+    'Date of Lease': lease.dol,
+    'Term': lease.term,
+    'Alienation Clause Indicator': lease.aci,
+    'Postcode': lease.pc,
+    'RecordHash': lease.hash
+  });
+
+  if (Array.isArray(leases)) return leases.map(mapOne);
+  return mapOne(leases);
+};
 
 const Lease = mongoose.model('Lease', leaseSchema);
 

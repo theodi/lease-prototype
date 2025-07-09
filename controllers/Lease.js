@@ -1,6 +1,7 @@
 import Lease from '../models/Lease.js';
 import User from '../models/User.js';
 import LeaseViewStat from '../models/LeaseViewStat.js';
+import LeaseTracker from '../models/LeaseTracker.js';
 import LeaseTermCache from '../models/LeaseTermCache.js';
 import SearchAnalytics from '../models/SearchAnalytics.js';
 import OpenAI from 'openai';

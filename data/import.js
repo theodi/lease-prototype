@@ -9,21 +9,6 @@ import config from '../config/index.js';
 import Lease from '../models/Lease.js';
 
 // ─────────────────────────────────────────────
-// 🔧 Utility: Create hash of lease row (excluding Postcode)
-// ─────────────────────────────────────────────
-function hashLeaseRecord(row) {
-  const fields = { ...row };
-  delete fields['Postcode'];
-
-  const values = Object.keys(fields)
-    .sort()
-    .map(k => (fields[k] || '').toString().trim())
-    .join('|');
-
-  return crypto.createHash('sha256').update(values).digest('hex');
-}
-
-// ─────────────────────────────────────────────
 // 🔧 Utility: Extract postcode from address fields
 // ─────────────────────────────────────────────
 function extractPostcode(row) {
@@ -96,7 +81,6 @@ async function importCSV(filePath) {
     if (rowCount < resumeFrom) continue;
 
     row.Postcode = extractPostcode(row);
-    row.RecordHash = hashLeaseRecord(row);
     batch.push(row);
 
     if (batch.length >= BATCH_SIZE) {

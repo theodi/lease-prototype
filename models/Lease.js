@@ -11,8 +11,7 @@ const leaseSchema = new mongoose.Schema({
   dol: String,
   term: String,
   aci: String,
-  pc: { type: String, index: true },
-  hash: { type: String, index: true }
+  pc: { type: String, index: true }
 }, {
   timestamps: true,
   toJSON: { virtuals: true },
@@ -52,14 +51,12 @@ leaseSchema.virtual('Alienation Clause Indicator').get(function () {
 leaseSchema.virtual('Postcode').get(function () {
   return this.pc;
 });
-leaseSchema.virtual('RecordHash').get(function () {
-  return this.hash;
-});
 
 leaseSchema.index({
   rpd: 'text',
   apd: 'text'
 });
+
 // Static method to remap keys using virtual aliases
 leaseSchema.statics.remapLeases = function (leases) {
   const mapOne = lease => ({
@@ -74,8 +71,7 @@ leaseSchema.statics.remapLeases = function (leases) {
     'Date of Lease': lease.dol,
     'Term': lease.term,
     'Alienation Clause Indicator': lease.aci,
-    'Postcode': lease.pc,
-    'RecordHash': lease.hash
+    'Postcode': lease.pc
   });
 
   if (Array.isArray(leases)) return leases.map(mapOne);

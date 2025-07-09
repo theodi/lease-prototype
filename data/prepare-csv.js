@@ -1,3 +1,4 @@
+
 import fs from 'fs';
 import { parse } from 'csv-parse';
 import { stringify } from 'csv-stringify';
@@ -20,17 +21,6 @@ const FIELD_MAP = {
   'Term': 'term',
   'Alienation Clause Indicator': 'aci'
 };
-
-// Utility: Create hash of lease row (excluding Postcode)
-function hashLeaseRecord(row) {
-  const fields = { ...row };
-  delete fields['Postcode'];
-  const values = Object.keys(fields)
-    .sort()
-    .map(k => (fields[k] || '').toString().trim())
-    .join('|');
-  return crypto.createHash('sha256').update(values).digest('hex');
-}
 
 // Utility: Extract postcode from address fields
 function extractPostcode(originalRow) {
@@ -84,7 +74,6 @@ async function processCSV(inputPath, outputBasePath) {
 
     // Add derived fields
     row.pc = extractPostcode(originalRow);
-    row.hash = hashLeaseRecord(row);
 
     if (!headerKeys) {
       headerKeys = Object.keys(row);

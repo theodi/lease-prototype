@@ -13,4 +13,12 @@ const leaseTrackerSchema = new mongoose.Schema({
   }
 });
 
+leaseTrackerSchema.statics.upsertLastUpdated = async function(uid, lastUpdated) {
+  await this.updateOne(
+    { uid },
+    { $set: { lastUpdated } },
+    { upsert: true }
+  );
+};
+
 export default mongoose.model('LeaseTracker', leaseTrackerSchema);

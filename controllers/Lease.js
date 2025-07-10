@@ -278,6 +278,19 @@ export async function show(req, res) {
 
     await LeaseViewStat.recordView(uniqueId);
 
+    // Fetch the current version of the lease
+    const trackerEntry = await LeaseTracker.findOne({ uid: uniqueId }).lean();
+    const currentVersion = trackerEntry?.lastUpdated || null;
+
+    // Update versionViewed in bookmark if already bookmarked
+    if (isBookmarked && currentVersion) {
+      const bookmark = user.bookmarks.find(b => b.uid === uniqueId);
+      if (bookmark && bookmark.versionViewed !== currentVersion) {
+        bookmark.versionViewed = currentVersion;
+        await user.save();
+      }
+    }
+
     const rawleases = await Lease.find({ 'uid': uniqueId })
       .sort({ 'ro': 1, 'apid': 1 })
       .lean();

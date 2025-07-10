@@ -2,11 +2,12 @@ import mongoose from 'mongoose';
 import crypto from 'crypto';
 import config from '../config/index.js'; // adjust path as needed
 import Lease from '../models/Lease.js';
+import LeaseTracker from '../models/LeaseTracker.js';
 
 const loginSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now },
   ipAddress: String
-});
+}, { _id: false });
 
 const userSchema = new mongoose.Schema({
   email: {
@@ -33,7 +34,11 @@ const userSchema = new mongoose.Schema({
     count: { type: Number, default: 0 },
     lastReset: { type: Date, default: Date.now }
   },
-  bookmarks: [{ type: String, default: [] }] // storing Unique Identifier directly
+  bookmarks: [{
+    uid: { type: String, required: true },
+    versionViewed: { type: String, required: true }, // Format: 'YYYY-MM'
+    _id: false
+  }]
 }, {
   timestamps: true
 });
@@ -99,26 +104,38 @@ userSchema.methods.incrementLeaseViews = async function () {
 
 // Check if bookmarked
 userSchema.methods.isLeaseBookmarked = function(uniqueId) {
-  return this.bookmarks.includes(uniqueId);
+  return this.bookmarks.some(b => {
+    if (typeof b === 'string') return b === uniqueId; // legacy format
+    return b.uid === uniqueId;
+  });
 };
 
-// Add a bookmark
 userSchema.methods.bookmarkLease = async function(uniqueId) {
-  if (this.bookmarks.includes(uniqueId)) return;
+  const alreadyBookmarked = this.bookmarks.some(b => {
+    if (typeof b === 'string') return b === uniqueId;
+    return b.uid === uniqueId;
+  });
+
+  if (alreadyBookmarked) return;
 
   if (this.bookmarks.length >= config.bookmarks.limit) {
     throw new Error('Bookmark limit reached');
   }
 
-  this.bookmarks.push(uniqueId);
+  const tracker = await LeaseTracker.findOne({ uid: uniqueId }).lean();
+  const versionViewed = tracker?.lastUpdated || null;
+
+  this.bookmarks.push({ uid: uniqueId, versionViewed });
   await this.save();
 };
 
 // Get all bookmarked leases (resolve Unique Identifiers to most recent leases)
 userSchema.methods.getBookmarkedLeases = async function() {
+  const uids = this.bookmarks.map(b => typeof b === 'string' ? b : b.uid);
+
   const leases = await Lease.aggregate([
-    { $match: { 'uid': { $in: this.bookmarks } } },
-    { $sort: { 'uid': 1, 'ro': -1 } },
+    { $match: { uid: { $in: uids } } },
+    { $sort: { uid: 1, ro: -1 } },
     {
       $group: {
         _id: '$uid',
@@ -127,6 +144,7 @@ userSchema.methods.getBookmarkedLeases = async function() {
     },
     { $replaceRoot: { newRoot: '$lease' } }
   ]);
+
   return Lease.remapLeases(leases);
 };
 

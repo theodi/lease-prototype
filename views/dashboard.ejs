@@ -1,0 +1,143 @@
+<script src="/lib/chart.js"></script>
+<div class="container my-5">
+  <h1 class="mb-4">Admin Dashboard</h1>
+
+  <div class="row g-4 mb-5">
+    <div class="col-md-4">
+      <div class="card text-bg-light h-100">
+        <div class="card-body">
+          <h5 class="card-title">Leases</h5>
+          <p class="display-6"><%= leaseCount.toLocaleString('en-GB') %></p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card text-bg-light h-100">
+        <div class="card-body">
+          <h5 class="card-title">Total users</h5>
+          <p class="display-6"><%= userCount.toLocaleString('en-GB') %></p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card text-bg-light h-100">
+        <div class="card-body">
+          <h5 class="card-title">Last Update</h5>
+          <% if (latestUpdate) { %>
+            <p class="mb-1">Version: <strong><%= latestUpdate.version %></strong></p>
+            <ul class="mb-0 small list-unstyled">
+              <li>Added: <%= latestUpdate.added.toLocaleString('en-GB') || 0 %></li>
+              <li>Deleted: <%= latestUpdate.deleted.toLocaleString('en-GB') || 0 %></li>
+              <li>Skipped: <%= latestUpdate.skipped.toLocaleString('en-GB') || 0 %></li>
+              <li>Manual Review: <%= latestUpdate.manualReview.toLocaleString('en-GB') || 0 %></li>
+            </ul>
+          <% } else { %>
+            <p>No updates logged.</p>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mt-5">
+    <h3>User Logins</h3>
+    <h4 class="mt-4">Last 7 days</h4>
+    <canvas id="dailyChart"></canvas>
+    <h4 class="mt-4">Last 12 months</h4>
+    <canvas id="monthlyChart"></canvas>
+    <h4 class="mt-4">Last 10 years</h4>
+    <canvas id="yearlyChart"></canvas>
+   </div>
+
+  <h3 class="mt-5">Top 10 Most Viewed Leases (All Time)</h3>
+  <table class="table table-striped table-sm">
+    <thead>
+      <tr>
+        <th>Register Property Description</th>
+        <th>Views</th>
+        <th>Last Viewed</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% topLeasesAllTime.forEach(item => { %>
+        <tr>
+          <td><a href="/app/lease/<%= item.uniqueId %>"><%= leaseMap.get(item.uniqueId) || '—' %></a></td>
+          <td><%= item.viewCount %></td>
+          <td><%= item.lastViewedAt ? new Date(item.lastViewedAt).toLocaleDateString() : '—' %></td>
+        </tr>
+      <% }); %>
+    </tbody>
+  </table>
+
+  <h3 class="mt-5">Top 10 Most Viewed Leases (Last 30 Days)</h3>
+  <table class="table table-striped table-sm">
+    <thead>
+      <tr>
+        <th>Register Property Description</th>
+        <th>Views</th>
+        <th>Last Viewed</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% topLeasesLastMonth.forEach(item => { %>
+        <tr>
+          <td><a href="/app/lease/<%= item.uniqueId %>"><%= leaseMap.get(item.uniqueId) || '—' %></a></td>
+          <td><%= item.viewCount %></td>
+          <td><%= item.lastViewedAt ? new Date(item.lastViewedAt).toLocaleDateString() : '—' %></td>
+        </tr>
+      <% }); %>
+    </tbody>
+  </table>
+
+  <h3 class="mt-5">Search Type Usage</h3>
+  <table class="table table-bordered table-sm">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Count</th>
+        <th>Last Used</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% searchStats.forEach(stat => { %>
+        <tr>
+          <td><%= stat.type %></td>
+          <td><%= stat.count %></td>
+          <td><%= new Date(stat.lastUsedAt).toLocaleDateString() %></td>
+        </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</div>
+<script>
+  const dailyStats = <%- JSON.stringify(dailyStats) %>;
+  const monthlyStats = <%- JSON.stringify(monthlyStats) %>;
+  const yearlyStats = <%- JSON.stringify(yearlyStats) %>;
+
+  function renderChart(id, labels, data, label) {
+    new Chart(document.getElementById(id), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label,
+          data,
+          fill: false,
+          borderWidth: 2,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: { beginAtZero: true }
+        }
+      }
+    });
+  }
+
+  renderChart('dailyChart', dailyStats.map(d => d.label), dailyStats.map(d => d.value), 'Last 7 Days');
+  renderChart('monthlyChart', monthlyStats.map(d => d.label), monthlyStats.map(d => d.value), 'Last 12 Months');
+  renderChart('yearlyChart', yearlyStats.map(d => d.label), yearlyStats.map(d => d.value), 'Last 10 Years');
+</script>

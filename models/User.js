@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import config from '../config/index.js'; // adjust path as needed
 import Lease from '../models/Lease.js';
 import LeaseTracker from '../models/LeaseTracker.js';
+import UserLoginStat from '../models/UserLoginStat.js';
 
 const loginSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now },
@@ -70,11 +71,47 @@ userSchema.methods.anonymize = function () {
   return this.save();
 };
 
+/*
 userSchema.methods.addLogin = async function (ipAddress) {
   this.lastLogin = new Date();
   this.loginCount += 1;
   this.loginHistory.push({ ipAddress });
   return this.save();
+};
+*/
+
+userSchema.methods.addLogin = async function (ip) {
+  const now = new Date();
+  const userId = this._id;;
+
+  const formatDate = (date) => date.toISOString().split('T')[0]; // 'YYYY-MM-DD'
+  const formatMonth = (date) => date.toISOString().slice(0, 7);   // 'YYYY-MM'
+  const formatYear = (date) => date.getFullYear().toString();     // 'YYYY'
+
+  const last = this.lastLogin ? new Date(this.lastLogin) : null;
+
+  const shouldIncrementDay = !last || formatDate(last) !== formatDate(now);
+  const shouldIncrementMonth = !last || formatMonth(last) !== formatMonth(now);
+  const shouldIncrementYear = !last || formatYear(last) !== formatYear(now);
+
+  const increments = [];
+
+  if (shouldIncrementDay) increments.push(formatDate(now));
+  if (shouldIncrementMonth) increments.push(formatMonth(now));
+  if (shouldIncrementYear) increments.push(formatYear(now));
+
+  for (const period of increments) {
+    await UserLoginStat.findOneAndUpdate(
+      { period },
+      { $inc: { count: 1 } },
+      { upsert: true, new: true }
+    );
+  }
+
+  // Update user's last login time and IP
+  this.lastLoginAt = now;
+  this.lastLoginIp = ip;
+  await this.save();
 };
 
 userSchema.methods.hasCredit = async function (checkOnly = false) {

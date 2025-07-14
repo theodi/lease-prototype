@@ -1,20 +1,52 @@
 <div class="card">
-    <div class="card-body">
-        <h1 class="card-title text-center mb-4">Welcome</h1>
-        
-        <% if (typeof error !== 'undefined') { %>
-            <div class="alert alert-danger" role="alert" aria-live="assertive">
-                <%= error %>
-            </div>
-        <% } %>
+  <div class="card-body">
+    <h1 class="card-title text-center mb-4">Welcome</h1>
 
-        <form action="/verify-email" method="POST" aria-label="Email verification form">
-            <div class="mb-3">
-                <label for="email" class="form-label">Enter your email to continue</label>
-                <input type="email" class="form-control" id="email" name="email" required aria-describedby="emailHelp">
-                <div id="emailHelp" class="form-text">We'll send a verification code to your email address.</div>
+    <% if (typeof error !== 'undefined') { %>
+      <div class="alert alert-danger" role="alert" aria-live="assertive">
+        <%= error %>
+      </div>
+    <% } %>
+
+    <form action="/verify-email" method="POST" aria-label="Email verification form">
+      <div class="mb-3">
+        <label for="email" class="form-label">Enter your email to continue</label>
+        <input type="email"
+               class="form-control"
+               id="email"
+               name="email"
+               required
+               aria-describedby="emailHelp whyEmail">
+        <div id="emailHelp" class="form-text">
+          We'll send a verification code to your email address.
+          <br>
+          <a href="#" class="link-secondary small" data-bs-toggle="collapse" data-bs-target="#whyEmail" aria-expanded="false" aria-controls="whyEmail">
+            Why do we need your email?
+          </a>
+        </div>
+        <div class="collapse mt-2" id="whyEmail">
+            <div class="card card-body bg-light small">
+                We are required to collect and retain your email address and IP address as part of our licence with HM Land Registry, who supply the lease data used in this tool.<br>&nbsp;<br>
+                This information may be accessed by Land Registry staff, their authorised representatives, or appointed auditors for the purpose of:
+                <ul class="mt-2 mb-2">
+                <li>Ensuring we comply with the terms of the licence</li>
+                <li>Preventing or detecting fraud or misuse of the data</li>
+                </ul>
+                &nbsp;<br>
+                Access may be immediate in cases of suspected fraud, or given with notice for routine audits. Your information will never be used for marketing, and any data obtained in audits must remain confidential.
+                <br>&nbsp;<br>
+                We retain this information for up to 12 months, in line with our licence obligations.
+                <br>&nbsp;<br>
+                For more information about your privacy and our use of cookies, please see
+                <a href="https://www.lease-advice.org/privacy-policy-and-cookies/" target="_blank" rel="noopener">our Privacy and Cookies Policy</a>
             </div>
-            <button type="submit" class="btn btn-primary w-100"><span class="visually-hidden">Send Verification Code</span>Send Verification Code</button>
-        </form>
-    </div>
-</div> 
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary w-100">
+        <span class="visually-hidden">Send Verification Code</span>
+        Send Verification Code
+      </button>
+    </form>
+  </div>
+</div>

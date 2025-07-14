@@ -46,6 +46,10 @@ const userSchema = new mongoose.Schema({
   leaseUpdateEmailsSent: {
     type: [String], // Array of 'YYYY-MM' version strings
     default: []
+  },
+  lastSarRequestAt: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true

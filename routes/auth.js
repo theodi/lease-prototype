@@ -4,6 +4,7 @@ import User from '../models/User.js';
 import Lease from '../models/Lease.js';
 import LeaseUpdateLog from '../models/LeaseUpdateLog.js';
 import LeaseTracker from '../models/LeaseTracker.js';
+import { sendSarEmail } from '../utils/email.js';
 
 const router = express.Router();
 
@@ -119,5 +120,38 @@ router.post('/profile', requireVerifiedEmail, async (req, res) => {
     res.status(500).render('error', { error: 'Failed to update preferences' });
   }
 });
+
+// Handle SAR request (POST)
+router.post('/profile/request-sar', requireVerifiedEmail, async (req, res) => {
+  try {
+    const user = await User.findById(req.session.userId).lean();
+
+    const now = new Date();
+    const lastRequest = user.lastSarRequestAt || new Date(0);
+    const hoursSince = (now - new Date(lastRequest)) / (1000 * 60 * 60);
+
+    if (hoursSince < 24) {
+      return res.render('profile', {
+        email: user.email,
+        receiveLeaseUpdateEmails: user.receiveLeaseUpdateEmails !== false,
+        sarMessage: 'You can only request your data once every 24 hours.'
+      });
+    }
+
+    await sendSarEmail(user);
+
+    await User.updateOne({ _id: user._id }, { lastSarRequestAt: now });
+
+    res.render('profile', {
+      email: user.email,
+      receiveLeaseUpdateEmails: user.receiveLeaseUpdateEmails !== false,
+      sarMessage: 'Your data has been emailed to you.'
+    });
+  } catch (err) {
+    console.error('Error handling SAR request:', err);
+    res.status(500).render('error', { error: 'Failed to process SAR request' });
+  }
+});
+
 
 export default router;

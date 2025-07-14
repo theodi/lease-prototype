@@ -20,6 +20,16 @@
     </form>
 
     <hr class="mt-4">
+    <h5>Download your data</h5>
+    <form method="POST" action="/profile/request-sar">
+    <p class="text-muted mb-1">Request a copy of your personal data (once per day).</p>
+    <button class="btn btn-outline-primary" type="submit">Request My Data</button>
+    </form>
+    <% if (typeof sarMessage !== 'undefined') { %>
+    <div class="alert alert-info mt-3"><%= sarMessage %></div>
+    <% } %>
+
+    <hr class="mt-4">
     <div class="d-flex justify-content-between align-items-center">
     <a href="/app" class="btn btn-secondary">Back to Search</a>
     <form action="/logout" method="POST" class="mb-0">

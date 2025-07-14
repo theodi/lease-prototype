@@ -68,3 +68,47 @@ export async function sendBookmarkUpdateEmail(user, updatedLeases, latestVersion
 
   await transporter.sendMail(mailOptions);
 }
+
+export async function sendSarEmail(user) {
+  const jsonData = JSON.stringify(user, null, 2);
+
+  const explanation = `
+Hello,
+
+As requested, here is a copy of the data we hold for your account.
+
+------------------------------------------------------
+Email Address: ${user.email}
+Account Created: ${new Date(user.createdAt).toLocaleString()}
+Last Login: ${new Date(user.lastLogin).toLocaleString()}
+Login Count: ${user.loginCount}
+IP Addresses Used:
+${(user.loginHistory || []).map(l => `- ${l.ipAddress} (${new Date(l.timestamp).toLocaleString()})`).join('\n')}
+
+Bookmarks:
+${(user.bookmarks || []).map(b => `- ${b.uid} (last viewed version: ${b.versionViewed})`).join('\n')}
+
+Lease Update Notifications: ${user.receiveLeaseUpdateEmails ? 'Enabled' : 'Disabled'}
+Last SAR Request: ${user.lastSarRequestAt ? new Date(user.lastSarRequestAt).toLocaleString() : 'Never'}
+------------------------------------------------------
+
+This data is also attached as a JSON file for your reference.
+
+Regards,
+The Lease Finder Team
+`;
+
+  const mailOptions = {
+    from: `"Lease Finder Tool" <${config.email.user}>`,
+    to: user.email,
+    subject: 'Your Subject Access Request (SAR) Data',
+    text: explanation,
+    attachments: [{
+      filename: 'your-data.json',
+      content: jsonData,
+      contentType: 'application/json'
+    }]
+  };
+
+  await transporter.sendMail(mailOptions);
+}

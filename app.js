@@ -12,6 +12,7 @@ import publicRoutes from './routes/public.js';
 import authRoutes from './routes/auth.js';
 import leaseRoutes from './routes/lease.js';
 import dashboardRoutes from './routes/dashboard.js';
+import bugRoutes from './routes/bugReport.js';
 
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -79,6 +80,10 @@ app.use('/', publicRoutes);
 app.use('/', authRoutes);
 app.use('/', leaseRoutes);
 app.use('/', dashboardRoutes);
+app.use('/', bugRoutes);
+
+app.use('/uploads/screenshots', express.static('uploads/screenshots'));
+
 
 // ─────────────────────────────────────────────
 // Error Handler

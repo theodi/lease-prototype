@@ -3,7 +3,7 @@
   <h1 class="mb-4">Admin Dashboard</h1>
 
   <div class="row g-4 mb-5">
-    <div class="col-md-4">
+    <div class="col-sm-12 col-md-6">
       <div class="card text-bg-light h-100">
         <div class="card-body">
           <h5 class="card-title">Leases</h5>
@@ -11,7 +11,7 @@
         </div>
       </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-sm-12 col-md-6">
       <div class="card text-bg-light h-100">
         <div class="card-body">
           <h5 class="card-title">Total users</h5>
@@ -19,7 +19,7 @@
         </div>
       </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-sm-12 col-md-6">
       <div class="card text-bg-light h-100">
         <div class="card-body">
           <h5 class="card-title">Last Update</h5>
@@ -36,6 +36,15 @@
           <% } %>
         </div>
       </div>
+    </div>
+    <div class="col-sm-12 col-md-6">
+        <div class="card text-bg-light h-100">
+            <div class="card-body">
+            <h5 class="card-title">Bug Reports</h5>
+            <p class="display-6"><%= bugCount.toLocaleString('en-GB') %></p>
+            <a href="/bugs" class="btn btn-sm btn-primary mt-2">View reports</a>
+            </div>
+        </div>
     </div>
   </div>
   <div class="mt-5">

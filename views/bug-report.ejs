@@ -1,0 +1,18 @@
+<div class="card my-5">
+  <div class="card-body">
+    <h1 class="card-title">Report a Problem</h1>
+    <p class="text-muted">Please describe the issue you're experiencing. You can optionally upload a screenshot to help us understand the problem.</p>
+    <form action="/bug-report" method="POST" enctype="multipart/form-data">
+      <div class="mb-3">
+        <label for="description" class="form-label">What went wrong?</label>
+        <textarea name="description" id="description" class="form-control" rows="5" required></textarea>
+      </div>
+      <div class="mb-3">
+        <label for="screenshot" class="form-label">Upload Screenshot (optional)</label>
+        <input type="file" class="form-control" name="screenshot" accept="image/*">
+      </div>
+      <input type="hidden" name="pageUrl" value="<%= referer || '' %>">
+      <button type="submit" class="btn btn-primary w-100">Submit Report</button>
+    </form>
+  </div>
+</div>

@@ -6,6 +6,7 @@ import LeaseViewStat from '../models/LeaseViewStat.js';
 import SearchAnalytics from '../models/SearchAnalytics.js';
 import config from '../config/index.js';
 import UserLoginStat from '../models/UserLoginStat.js';
+import BugReport from '../models/BugReport.js';
 
 const router = express.Router();
 
@@ -40,6 +41,7 @@ router.get('/dashboard', requireVerifiedEmail, requireAdminDomain, async (req, r
     const [
       leaseCount,
       userCount,
+      bugCount,
       latestUpdate,
       topLeasesAllTime,
       topLeasesLastMonth,
@@ -47,6 +49,7 @@ router.get('/dashboard', requireVerifiedEmail, requireAdminDomain, async (req, r
     ] = await Promise.all([
       Lease.estimatedDocumentCount(),
       User.countDocuments(),
+      BugReport.countDocuments(),
       LeaseUpdateLog.findOne().sort({ version: -1 }).lean(),
       LeaseViewStat.find().sort({ viewCount: -1 }).limit(10).lean(),
       LeaseViewStat.find({ lastViewedAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } })
@@ -96,6 +99,7 @@ router.get('/dashboard', requireVerifiedEmail, requireAdminDomain, async (req, r
       email: req.session.userEmail,
       leaseCount,
       userCount,
+      bugCount,
       latestUpdate,
       topLeasesAllTime,
       topLeasesLastMonth,
@@ -110,34 +114,5 @@ router.get('/dashboard', requireVerifiedEmail, requireAdminDomain, async (req, r
     res.status(500).render('error', { error: 'Unable to load admin dashboard' });
   }
 });
-
-function formatStatResults(stats, format) {
-  const map = new Map(stats.map(s => [s.period, s.count]));
-  const result = [];
-
-  if (format === 'day') {
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
-      result.push({ label: key, value: map.get(key) || 0 });
-    }
-  } else if (format === 'month') {
-    for (let i = 11; i >= 0; i--) {
-      const d = new Date();
-      d.setMonth(d.getMonth() - i);
-      const key = d.toISOString().slice(0, 7);
-      result.push({ label: key, value: map.get(key) || 0 });
-    }
-  } else if (format === 'year') {
-    const currentYear = new Date().getFullYear();
-    for (let y = currentYear - 9; y <= currentYear; y++) {
-      const key = `${y}`;
-      result.push({ label: key, value: map.get(key) || 0 });
-    }
-  }
-
-  return result;
-}
 
 export default router;

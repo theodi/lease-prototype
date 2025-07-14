@@ -10,6 +10,23 @@
       <h1 class="card-title mb-3">
         <%= leases[0]?.['Register Property Description'] || 'Unknown' %>
       </h1>
+      <%
+const fieldDescriptions = {
+  'Unique Identifier': 'A unique reference number given to a piece of registered land',
+  'Tenure': 'The conditions upon which a person holds land i.e. Freehold or Leasehold',
+  'Register Property Description': 'The unformatted property description in the register',
+  'County': 'Name of current County in England and Wales',
+  'Region': 'Name of a geographic region which comprises one or more current counties, former counties or unitary authorities or any combination of these',
+  'Associated Property Description ID': 'Uniquely identifies the Associated Property Description',
+  'Associated Property Description': ' 	All Land Registry Property Gazetteer (LRPG) addresses associated with the registered property. Each unique identifier may refer to multiple associated property descriptions.',
+  'OS UPRN': 'A Unique Property Reference Number (UPRN) used by Ordnance Survey for the spatial address of a property. If no UPRN is available, this attribute will be blank',
+  'Price Paid': 'The sale price stated on the transfer deed which will be the last recorded sale price available in our published Price Paid Dataset. This may not relate to the sale to the current proprietor which may have been excluded',
+  'Reg Order': 'Leasehold titles can be comprised of 1 or more leases; the leases are represented by a number in the order of registration date on the register',
+  'Date of Lease': 'Date that the lease is signed and becomes a legal document. This may not be the start of the lease term.',
+  'Term': 'The period for which the lease is granted. There is no standard format for this entry.',
+  'Alienation Clause Indicator': 'Indicates whether an alienation clause, which limits the lessee’s power to dispose of the lease (re-assign, transfer, sublet or share occupation) is present in the register'
+};
+%>
       <% const importVersion = '2025-05'; %>
       <% const [importYear, importMonth] = importVersion.split('-'); %>
       <% const importVersionDate = new Date(importYear, importMonth - 1); %>
@@ -64,19 +81,38 @@
                         <div class="accordion-body">
 
                             <!-- 🔹 Source Data Table -->
-                            <h5 class="mt-3">Land Registry Source Data</h5>
+                             <h5 class="mt-3">Land Registry Source Data</h5>
                             <table class="table table-bordered">
-                            <caption class="visually-hidden">Original lease data</caption>
-                            <tbody>
+                              <caption class="visually-hidden">Original lease data</caption>
+                              <tbody>
                                 <% Object.entries(lease).forEach(([key, value]) => { %>
-                                <% if (key !== '_id' && key !== '__v' && key !== 'createdAt' && key !== 'updatedAt') { %>
-                                    <tr>
-                                    <th scope="row"><%= key %></th>
-                                    <td class="wrap-text"><%= value %></td>
+                                  <% if (key !== '_id' && key !== '__v' && key !== 'createdAt' && key !== 'updatedAt') { %>
+                                    <tr data-field="<%= key %>">
+                                      <th scope="row">
+                                        <% if (fieldDescriptions[key]) { %>
+                                          <span
+                                            tabindex="0"
+                                            data-bs-toggle="tooltip"
+                                            title="<%= fieldDescriptions[key] %>"
+                                          >
+                                            <%= key %>
+                                            <span class="visually-hidden"> – <%= fieldDescriptions[key] %></span>
+                                          </span>
+                                        <% } else { %>
+                                          <%= key %>
+                                        <% } %>
+                                      </th>
+                                      <td class="wrap-text">
+                                        <% if (key === 'Price Paid' && value && !isNaN(value)) { %>
+                                          £<%= new Intl.NumberFormat('en-GB').format(parseFloat(value)) %>
+                                        <% } else { %>
+                                          <%= value %>
+                                        <% } %>
+                                      </td>
                                     </tr>
-                                <% } %>
+                                  <% } %>
                                 <% }); %>
-                            </tbody>
+                              </tbody>
                             </table>
 
                             <!-- 🔸 Derived Data Table -->
@@ -170,9 +206,7 @@
         const container = document.querySelector(`[data-lease-id="${leaseId}"]`);
         const regOrder = parseInt(container?.dataset.regOrder) || 0;
 
-        const termText = Array.from(container.querySelectorAll('tr'))
-          .find((row) => row.querySelector('th')?.textContent === 'Term')
-          ?.querySelector('td')?.textContent?.trim();
+        const termText = container.querySelector('tr[data-field="Term"] td')?.textContent?.trim();
 
         if (!termText) return;
 

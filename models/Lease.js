@@ -7,6 +7,8 @@ const leaseSchema = new mongoose.Schema({
   rgn: String,
   apid: Number,
   apd: String,
+  uprn: Number,
+  ppd: Number,
   ro: Number,
   dol: String,
   term: String,
@@ -36,6 +38,12 @@ leaseSchema.virtual('Associated Property Description ID').get(function () {
 leaseSchema.virtual('Associated Property Description').get(function () {
   return this.apd;
 });
+leaseSchema.virtual('OS UPRN').get(function () {
+  return this.uprn;
+});
+leaseSchema.virtual('Price Paid').get(function () {
+  return this.ppd;
+});
 leaseSchema.virtual('Reg Order').get(function () {
   return this.ro;
 });
@@ -62,6 +70,8 @@ leaseSchema.statics.remapLeases = function (leases) {
     'Region': lease.rgn,
     'Associated Property Description ID': lease.apid,
     'Associated Property Description': lease.apd,
+    'OS UPRN': lease.uprn,
+    'Price Paid': lease.ppd,
     'Reg Order': lease.ro,
     'Date of Lease': lease.dol,
     'Term': lease.term,

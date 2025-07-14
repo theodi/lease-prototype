@@ -81,34 +81,6 @@ router.get('/app', requireVerifiedEmail, async (req, res) => {
     res.status(500).render('error', { error: 'Failed to load application' });
   }
 });
-/*
-// Manual postcode search logging
-router.post('/app/lookup', requireVerifiedEmail, async (req, res) => {
-  try {
-    const user = await User.findById(req.session.userId);
-
-    await user.checkSearchCount();
-    const remainingSearches = await user.getRemainingSearches();
-
-    res.render('app', {
-      email: user.email,
-      remainingSearches,
-      message: 'Search recorded successfully'
-    });
-  } catch (error) {
-    if (error.message === 'Daily search limit reached') {
-      return res.status(400).render('app', {
-        email: req.user.email,
-        remainingSearches: 0,
-        error: 'You have reached your daily search limit. Please try again tomorrow.'
-      });
-    }
-
-    console.error('Error processing search:', error);
-    res.status(500).render('error', { error: 'Failed to process search' });
-  }
-});
-*/
 // Logout route
 router.post('/logout', (req, res) => {
   req.session.destroy(err => {
@@ -119,6 +91,33 @@ router.post('/logout', (req, res) => {
     res.clearCookie('connect.sid');
     res.redirect('/');
   });
+});
+
+// Profile page (GET)
+router.get('/profile', requireVerifiedEmail, async (req, res) => {
+  try {
+    const user = await User.findById(req.session.userId).lean();
+    res.render('profile', {
+      email: user.email,
+      receiveLeaseUpdateEmails: user.receiveLeaseUpdateEmails !== false // treat undefined as true
+    });
+  } catch (err) {
+    console.error('Error loading profile:', err);
+    res.status(500).render('error', { error: 'Failed to load profile' });
+  }
+});
+
+// Profile update (POST)
+router.post('/profile', requireVerifiedEmail, async (req, res) => {
+  try {
+    const user = await User.findById(req.session.userId);
+    user.receiveLeaseUpdateEmails = !!req.body.receiveLeaseUpdateEmails; // checkbox on = true
+    await user.save();
+    res.redirect('/profile');
+  } catch (err) {
+    console.error('Error updating profile:', err);
+    res.status(500).render('error', { error: 'Failed to update preferences' });
+  }
 });
 
 export default router;

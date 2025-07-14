@@ -38,7 +38,15 @@ const userSchema = new mongoose.Schema({
     uid: { type: String, required: true },
     versionViewed: { type: String, required: true }, // Format: 'YYYY-MM'
     _id: false
-  }]
+  }],
+  receiveLeaseUpdateEmails: {
+    type: Boolean,
+    default: true
+  },
+  leaseUpdateEmailsSent: {
+    type: [String], // Array of 'YYYY-MM' version strings
+    default: []
+  }
 }, {
   timestamps: true
 });

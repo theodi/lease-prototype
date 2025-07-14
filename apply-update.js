@@ -1,4 +1,4 @@
-// run-changes.js
+// update-dataset.js
 import 'dotenv/config.js';
 import fs from 'fs';
 import { parse } from 'csv-parse';
@@ -7,6 +7,7 @@ import Lease from './models/Lease.js';
 import config from './config/index.js';
 import readline from 'readline';
 import LeaseTracker from './models/LeaseTracker.js';
+import LeaseUpdateLog from './models/LeaseUpdateLog.js';
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 function promptUser(question) {
@@ -84,6 +85,23 @@ async function processChanges(csvPath, { dryRun = true } = {}) {
     if (candidateMatches.length === 0) {
       if (DEBUG) console.log(`❌ Delete UID ${uid} — no matches for RO ${ro} and APID ${apid}`);
       unknownCount++;
+      continue;
+    }
+    // If exactly one candidate match, delete it directly
+    if (candidateMatches.length === 1) {
+      if (DEBUG) console.log(`🗑️ Deleting single candidate match for UID ${uid}`);
+      if (!dryRun) {
+        await Lease.deleteOne({ _id: candidateMatches[0]._id });
+        if (lastUpdated && !updatedUids.has(uid)) {
+          await LeaseTracker.upsertLastUpdated(uid, lastUpdated);
+          updatedUids.add(uid);
+        }
+      }
+      deleteCount += 1;
+      processedCount++;
+      if (processedCount % 1000 === 0) {
+        console.log(`📊 Processed ${processedCount} records...`);
+      }
       continue;
     }
     const exactMatches = candidateMatches.filter(dbRow =>
@@ -223,6 +241,24 @@ async function processChanges(csvPath, { dryRun = true } = {}) {
 
   await mongoose.disconnect();
   rl.close();
+
+  //Update the database
+
+  if (!dryRun && lastUpdated) {
+    await LeaseUpdateLog.updateOne(
+      { version: lastUpdated },
+      {
+        $set: {
+          added: addCount,
+          deleted: deleteCount,
+          skipped: skippedCount,
+          manualReview: unknownCount,
+          notes: `Change file: ${csvFileName}`
+        }
+      },
+      { upsert: true }
+    );
+  }
 }
 
 // Usage: node run-changes.js path/to/file.csv --apply

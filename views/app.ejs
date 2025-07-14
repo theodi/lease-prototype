@@ -4,7 +4,7 @@
             <h1 class="card-title mb-0">Lease search</h1>
             <div class="text-end">
                 <div class="text-muted">
-                <small>Verified as: <%= email %></small>
+                    <small>Verified as: <%= email %></small>
                 </div>
                 <form action="/logout" method="POST" class="d-inline">
                 <button type="submit" class="btn btn-link btn-sm text-decoration-none p-0" aria-label="Log out">
@@ -23,26 +23,35 @@
 
         <form id="address-search-form" class="mb-4" role="search" aria-label="Lease address search" autocomplete="off">
             <div class="mb-3">
-                <label for="address" class="form-label">Enter a UK Address</label>
-                <div class="input-group">
-                    <input type="text"
-                           class="form-control form-control-lg"
-                           id="address"
-                           name="address"
-                           placeholder="e.g. 20 Hemstal Road, NW6 2AL or Clapton"
-                           required
-                           autocomplete="off"
-                           aria-describedby="addressHelp"
-                           aria-label="Search for a UK address or postcode"
-                           <%= remainingSearches === 0 ? 'disabled' : '' %>>
-                    <button class="visually-hidden" type="submit" class="btn btn-primary btn-lg" id="search-btn">
-                        <span class="visually-hidden">Search</span>
-                        <i class="bi bi-search" aria-hidden="true"></i>
-                    </button>
+                <label for="address" id="addressHelp" class="form-label">Enter a valid UK postcode or start of address (full postcode is best)</label>
+                <div class="input-group mb-1">
+                <input type="text"
+                        class="form-control form-control-lg"
+                        id="address"
+                        name="address"
+                        placeholder="e.g. 20 Hemstal Road, NW6 2AL or Clapton"
+                        required
+                        autocomplete="off"
+                        aria-describedby="addressHelp"
+                        aria-label="Search for a UK address or postcode"
+                        <%= remainingSearches === 0 ? 'disabled' : '' %>>
+                <button class="visually-hidden" type="submit" class="btn btn-primary btn-lg" id="search-btn">
+                    <span class="visually-hidden">Search</span>
+                    <i class="bi bi-search" aria-hidden="true"></i>
+                </button>
                 </div>
-                <div id="addressHelp" class="form-text">Enter a valid UK post or start of address (full postcode is best)</div>
+
+                <% if (latestVersion) {
+                    const [y, m] = latestVersion.split('-');
+                    const updateDate = new Date(y, m - 1);
+                    const formatter = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' });
+                %>
+                <div class="text-end text-muted">
+                    <small>Data last updated: <%= formatter.format(updateDate) %></small>
+                </div>
+                <% } %>
             </div>
-        </form>
+            </form>
 
         <div id="results" class="mt-4 d-none" aria-live="polite" aria-atomic="true">
             <!-- Results will be displayed here -->
@@ -77,9 +86,6 @@
                 </div>
             </div>
         <% } %>
-
-    </div>
-</div>
 
 <style>
 .input-group .btn {

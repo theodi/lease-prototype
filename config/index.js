@@ -22,6 +22,9 @@ const config = {
   },
   bookmarks: {
     limit: parseInt(process.env.BOOKMARK_LIMIT) || 5
+  },
+  govuk: {
+    apiKey: process.env.GOVUK_API_KEY,
   }
 };
 

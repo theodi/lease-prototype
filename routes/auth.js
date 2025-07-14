@@ -2,6 +2,7 @@
 import express from 'express';
 import User from '../models/User.js';
 import Lease from '../models/Lease.js';
+import LeaseUpdateLog from '../models/LeaseUpdateLog.js';
 
 const router = express.Router();
 
@@ -41,18 +42,21 @@ router.get('/app', requireVerifiedEmail, async (req, res) => {
         ])
       : [];
 
+    const latestVersion = await LeaseUpdateLog.getLatestVersion();
+
     res.render('app', {
       email: user.email,
       remainingSearches,
       bookmarkedLeases,
-      recentlyViewedLeases
+      recentlyViewedLeases,
+      latestVersion
     });
   } catch (error) {
     console.error('Error loading app page:', error);
     res.status(500).render('error', { error: 'Failed to load application' });
   }
 });
-
+/*
 // Manual postcode search logging
 router.post('/app/lookup', requireVerifiedEmail, async (req, res) => {
   try {
@@ -79,7 +83,7 @@ router.post('/app/lookup', requireVerifiedEmail, async (req, res) => {
     res.status(500).render('error', { error: 'Failed to process search' });
   }
 });
-
+*/
 // Logout route
 router.post('/logout', (req, res) => {
   req.session.destroy(err => {

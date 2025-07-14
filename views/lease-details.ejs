@@ -7,20 +7,57 @@
 </style>
 <div class="card mt-4">
     <div class="card-body">
-        <h1 class="card-title mb-3">Lease Details for Unique Identifier: <%= uniqueId %></h1>
+      <h1 class="card-title mb-3">
+        <%= leases[0]?.['Register Property Description'] || 'Unknown' %>
+      </h1>
+      <% const importVersion = '2025-05'; %>
+      <% const [importYear, importMonth] = importVersion.split('-'); %>
+      <% const importVersionDate = new Date(importYear, importMonth - 1); %>
+      <% let versionDate = null; %>
+      <% let formatter = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' }); %>
+
+      <% if (currentVersion) { %>
+        <% const [year, month] = currentVersion.split('-'); %>
+        <% versionDate = new Date(year, month - 1); %>
+      <% } %>
+
+      <p class="text-muted">
+        <% if (!currentVersion) { %>
+          Last updated: unknown – first seen in our original <%= formatter.format(importVersionDate) %> data import.
+        <% } else if (currentVersion === importVersion) { %>
+          Last updated: unknown – first seen in our original <%= formatter.format(versionDate) %> data import.
+        <% } else { %>
+          Last updated: <%= formatter.format(versionDate) %>
+        <% } %>
+      </p>
+
+      <% const rpdSet = new Set(leases.map(l => l['Register Property Description'])); %>
+      <% if (rpdSet.size > 1) { %>
+        <div class="alert alert-danger">
+          ⚠️ Warning: Leases for this ID do not all share the same Register Property Description.
+        </div>
+      <% } %>
+      <% const multipleLeases = leases.length > 1; %>
         <!-- Lease advisory message -->
         <div id="lease-advice-<%= uniqueId %>" class="mb-3"></div>
+
+        <% if (multipleLeases) { %>
+          <div class="alert alert-info">
+            📌 This lease covers <%= leases.length %> properties. Click a row below to view details for each associated property.
+          </div>
+        <% } %>
+
 
         <div class="accordion" id="leaseAccordion">
             <% leases.slice().reverse().forEach((lease, idx) => { %>
                 <% const leaseId = lease._id || idx; %>
-                <% const isLatest = idx === 0; %>
+                <% const isLatest = !multipleLeases && idx === 0; %>
                 <div class="accordion-item"
                     data-lease-id="<%= leaseId %>"
                     data-reg-order="<%= lease['Reg Order'] || 0 %>">
                     <h2 class="accordion-header" id="heading-<%= leaseId %>">
                         <button class="accordion-button<%= isLatest ? '' : ' collapsed' %>" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-<%= leaseId %>" aria-expanded="<%= isLatest ? 'true' : 'false' %>" aria-controls="collapse-<%= leaseId %>">
-                            Reg Order: <%= lease['Reg Order'] %> | Associated Property Description ID: <%= lease['Associated Property Description ID'] %>
+                            <%= lease['Associated Property Description'] %>
                         </button>
                     </h2>
                     <div id="collapse-<%= leaseId %>" class="accordion-collapse collapse<%= isLatest ? ' show' : '' %>" aria-labelledby="heading-<%= leaseId %>" data-bs-parent="#leaseAccordion">

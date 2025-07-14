@@ -307,7 +307,8 @@ export async function show(req, res) {
       leases,
       uniqueId,
       isBookmarked,
-      canBookmark
+      canBookmark,
+      currentVersion
     });
 
   } catch (error) {

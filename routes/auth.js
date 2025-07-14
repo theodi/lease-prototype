@@ -3,6 +3,7 @@ import express from 'express';
 import User from '../models/User.js';
 import Lease from '../models/Lease.js';
 import LeaseUpdateLog from '../models/LeaseUpdateLog.js';
+import LeaseTracker from '../models/LeaseTracker.js';
 
 const router = express.Router();
 
@@ -16,7 +17,31 @@ router.get('/app', requireVerifiedEmail, async (req, res) => {
   try {
     const user = await User.findById(req.session.userId);
     const remainingSearches = await user.getRemainingSearches();
-    const bookmarkedLeases = await user.getBookmarkedLeases();
+    const leases = await user.getBookmarkedLeases();
+    const bookmarkMap = new Map(
+      user.bookmarks.map(b => [typeof b === 'string' ? b : b.uid, b.versionViewed || null])
+    );
+
+    const trackedVersions = await LeaseTracker.find({
+      uid: { $in: leases.map(l => l['Unique Identifier']) }
+    }).lean();
+
+    const trackerMap = new Map(trackedVersions.map(t => [t.uid, t.lastUpdated]));
+
+    // Enrich leases with version tracking info
+    const bookmarkedLeases = leases.map(lease => {
+      const uid = lease['Unique Identifier'];
+      const viewed = bookmarkMap.get(uid);
+      const latest = trackerMap.get(uid);
+      const isStale = latest && viewed && latest !== viewed;
+
+      return {
+        ...lease,
+        versionViewed: viewed,
+        versionLatest: latest,
+        isStale
+      };
+    });
 
     // Recently viewed leases (from session)
     const recentlyViewedIds = (req.session.searchedLeases || []).reverse(); // limit to last 5, newest first

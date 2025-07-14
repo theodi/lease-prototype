@@ -62,12 +62,19 @@
                 <h3>Bookmarked Leases</h3>
                 <div class="list-group">
                     <% bookmarkedLeases.forEach(lease => { %>
-                        <a  href="/app/lease/<%= encodeURIComponent(lease['Unique Identifier']) %>"
-                            class="list-group-item list-group-item-action">
+                        <a href="/app/lease/<%= encodeURIComponent(lease['Unique Identifier']) %>"
+                            class="list-group-item list-group-item-action d-flex justify-content-between align-items-start">
+                            <div>
                             <strong><%= lease['Register Property Description'] || '' %></strong><br>
                             <span><%= lease['Associated Property Description'] || '' %></span>
+                            </div>
+                            <% if (lease.isStale) { %>
+                            <span class="badge bg-warning text-dark ms-2" title="This lease has been updated since you last viewed it.">
+                                Updated
+                            </span>
+                            <% } %>
                         </a>
-                    <% }); %>
+                        <% }); %>
                 </div>
             </div>
         <% } %>

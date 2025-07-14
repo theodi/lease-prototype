@@ -13,6 +13,11 @@ const requireVerifiedEmail = (req, res, next) => {
   next();
 };
 
+router.get('/lease-guidance', (req, res) => {
+  const { uid } = req.query;
+  res.render('lease-guidance', { uid });
+});
+
 // Main app page
 router.get('/app', requireVerifiedEmail, async (req, res) => {
   try {

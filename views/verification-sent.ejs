@@ -22,7 +22,7 @@
     <form action="/verify-code" method="POST" class="mt-4" aria-label="Verification code form">
       <input type="hidden" name="email" value="<%= email %>">
       <div class="mb-3">
-        <label for="code" class="form-label">Enter your 6-digit verification code</label>
+        <label for="code" class="form-label">Enter the 6-digit verification code sent to your email</label>
         <input type="text"
                class="form-control form-control-lg text-center"
                id="code"
@@ -35,9 +35,6 @@
                aria-describedby="codeHelp"
                aria-label="6-digit verification code"
                style="letter-spacing: 0.5em; font-size: 1.5em;">
-        <div id="codeHelp" class="form-text text-center">
-          Enter the 6-digit code sent to your email
-        </div>
       </div>
       <button type="submit" class="btn btn-primary w-100">
         <span class="visually-hidden">Submit verification code</span>

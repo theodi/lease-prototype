@@ -283,11 +283,15 @@ export async function show(req, res) {
     const currentVersion = trackerEntry?.lastUpdated || null;
 
     // Update versionViewed in bookmark if already bookmarked
+    let isUpdated = false;
     if (isBookmarked && currentVersion) {
       const bookmark = user.bookmarks.find(b => b.uid === uniqueId);
-      if (bookmark && bookmark.versionViewed !== currentVersion) {
-        bookmark.versionViewed = currentVersion;
-        await user.save();
+      if (bookmark) {
+        isUpdated = bookmark.versionViewed !== currentVersion;
+        if (bookmark.versionViewed !== currentVersion) {
+          bookmark.versionViewed = currentVersion;
+          await user.save();
+        }
       }
     }
 
@@ -308,7 +312,8 @@ export async function show(req, res) {
       uniqueId,
       isBookmarked,
       canBookmark,
-      currentVersion
+      currentVersion,
+      isUpdated // <-- add this
     });
 
   } catch (error) {

@@ -46,6 +46,12 @@ const fieldDescriptions = {
           Last updated: <%= formatter.format(versionDate) %>
         <% } %>
       </p>
+      <% if (isUpdated) { %>
+        <div class="alert alert-info">
+          <strong>This record has been updated since you last viewed it.</strong><br>
+          We are unable to tell you exactly what has changed. The update may be minor (such as a spelling correction) or major (such as a change to the lease term or a new lease being added).
+        </div>
+      <% } %>
 
       <% const rpdSet = new Set(leases.map(l => l['Register Property Description'])); %>
       <% if (rpdSet.size > 1) { %>

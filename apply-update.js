@@ -8,6 +8,7 @@ import config from './config/index.js';
 import readline from 'readline';
 import LeaseTracker from './models/LeaseTracker.js';
 import LeaseUpdateLog from './models/LeaseUpdateLog.js';
+import path from 'path';
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 function promptUser(question) {
@@ -61,6 +62,132 @@ async function processChanges(csvPath, { dryRun = true } = {}) {
   }
   console.log(`To delete: ${deleteRows.length}`);
   console.log(`To add: ${addRows.length}`);
+  const uniqueAddUids = new Set(addRows.map(row => row['Unique Identifier']));
+  console.log(`Unique UIDs to add: ${uniqueAddUids.size}`);
+
+  // Precompute changed fields for adds ===
+
+  console.log('COMPUTING CHANGES');
+  const changedFieldsMap = {};
+  const BATCH_SIZE = 1000; // 1000 unique uids per batch
+  const cacheDir = path.resolve('./change_cache');
+  if (!fs.existsSync(cacheDir)) {
+    fs.mkdirSync(cacheDir);
+  }
+
+  // Group addRows by uid
+  const uidToRows = {};
+  for (const row of addRows) {
+    const uid = row['Unique Identifier'];
+    if (!uidToRows[uid]) uidToRows[uid] = [];
+    uidToRows[uid].push(row);
+  }
+  const allUids = Object.keys(uidToRows);
+  let changeProcessedCount = 0;
+  let batchNum = 1;
+  for (let i = 0; i < allUids.length; i += BATCH_SIZE) {
+    const batchUids = allUids.slice(i, i + BATCH_SIZE);
+    const batchFile = path.join(cacheDir, `changes_batch_${batchNum}.json`);
+    if (fs.existsSync(batchFile)) {
+      console.log(`⚡ Loading cached changes from ${batchFile}`);
+      const cached = JSON.parse(fs.readFileSync(batchFile, 'utf-8'));
+      Object.assign(changedFieldsMap, cached);
+      changeProcessedCount += batchUids.length;
+      batchNum++;
+      continue;
+    }
+    let batchMap = {};
+    for (const uid of batchUids) {
+      for (const originalRow of uidToRows[uid]) {
+        const mappedRow = mapRow(originalRow);
+        const existing = await Lease.findOne({ uid: mappedRow.uid, ro: mappedRow.ro, apid: mappedRow.apid }).lean();
+        let changedFields = [];
+        // Check if this uid is brand new (no records at all for this uid)
+        const anyForUid = await Lease.findOne({ uid: mappedRow.uid }).lean();
+        if (!anyForUid) {
+          // Brand new uid, mark as added with no changed fields
+          changedFields = [];
+          if (DEBUG) {
+            console.log(`🆕 Brand new UID ${mappedRow.uid} being added. No changed fields.`);
+          }
+        } else if (existing) {
+          if (DEBUG) {
+            console.log(`🔍 Comparing for UID ${mappedRow.uid} (RO: ${mappedRow.ro}, APID: ${mappedRow.apid})`);
+          }
+          for (const [csvKey, dbKey] of Object.entries(FIELD_MAP)) {
+            const newVal = (originalRow[csvKey] || '').toString().trim();
+            const oldVal = (existing[dbKey] || '').toString().trim();
+            if (newVal !== oldVal) {
+              changedFields.push(dbKey);
+              if (DEBUG) {
+                console.log(`   🔸 Field changed: ${dbKey} | Old: "${oldVal}" | New: "${newVal}"`);
+              }
+            }
+          }
+          if (mappedRow.pc !== existing.pc) {
+            changedFields.push('pc');
+            if (DEBUG) {
+              console.log(`   🔸 Field changed: pc | Old: "${existing.pc}" | New: "${mappedRow.pc}"`);
+            }
+          }
+          if (DEBUG && changedFields.length === 0) {
+            console.log('   ✅ No changes detected.');
+          }
+        } else {
+          // No exact match, check for previous reg order for this uid and apid
+          const prevRegOrders = await Lease.find({ uid: mappedRow.uid, apid: mappedRow.apid }).lean();
+          if (prevRegOrders.length > 0) {
+            // Find the max previous RO
+            const maxPrevRO = prevRegOrders.reduce((max, rec) => {
+              const roVal = isNaN(Number(rec.ro)) ? rec.ro : Number(rec.ro);
+              return roVal > max ? roVal : max;
+            }, isNaN(Number(prevRegOrders[0].ro)) ? prevRegOrders[0].ro : Number(prevRegOrders[0].ro));
+            const newRO = isNaN(Number(mappedRow.ro)) ? mappedRow.ro : Number(mappedRow.ro);
+            if (newRO > maxPrevRO) {
+              changedFields.push('ro');
+              if (DEBUG) {
+                console.log(`   🆕 Detected new reg order for UID ${mappedRow.uid}, APID ${mappedRow.apid}: new RO ${mappedRow.ro} > previous max RO ${maxPrevRO}`);
+              }
+            }
+          }
+          if (DEBUG) {
+            console.log(`🆕 No existing record found for UID ${mappedRow.uid} (RO: ${mappedRow.ro}, APID: ${mappedRow.apid})`);
+          }
+        }
+        batchMap[mappedRow.uid] = changedFields;
+      }
+      changeProcessedCount++;
+      if (changeProcessedCount % BATCH_SIZE === 0 || changeProcessedCount === allUids.length) {
+        console.log(`📊 Compared ${changeProcessedCount} unique uids for changes...`);
+      }
+    }
+    fs.writeFileSync(batchFile, JSON.stringify(batchMap, null, 2));
+    console.log(`💾 Cached changes for batch ${batchNum} to ${batchFile}`);
+    Object.assign(changedFieldsMap, batchMap);
+    batchNum++;
+  }
+
+  // After all batches processed, verify that all uids to be added have an entry in changedFieldsMap
+  const addUids = new Set(addRows.map(row => row['Unique Identifier']));
+  const missingUids = [];
+  for (const uid of addUids) {
+    if (!(uid in changedFieldsMap)) {
+      missingUids.push(uid);
+    }
+  }
+  if (missingUids.length > 0) {
+    console.error(`❌ ERROR: The following ${missingUids.length} uids to be added are missing from the change data (cache):`);
+    for (const uid of missingUids.slice(0, 20)) {
+      console.error(`   - ${uid}`);
+    }
+    if (missingUids.length > 20) {
+      console.error(`   ...and ${missingUids.length - 20} more.`);
+    }
+    throw new Error('Change data cache is incomplete. Please clear cache and rerun.');
+  } else {
+    console.log('✅ Verified: All uids to be added have entries in the change data.');
+  }
+
   console.log('PROCESSING DELETE');
 
   // Helper to map row
@@ -92,10 +219,6 @@ async function processChanges(csvPath, { dryRun = true } = {}) {
       if (DEBUG) console.log(`🗑️ Deleting single candidate match for UID ${uid}`);
       if (!dryRun) {
         await Lease.deleteOne({ _id: candidateMatches[0]._id });
-        if (lastUpdated && !updatedUids.has(uid)) {
-          await LeaseTracker.upsertLastUpdated(uid, lastUpdated);
-          updatedUids.add(uid);
-        }
       }
       deleteCount += 1;
       processedCount++;
@@ -114,10 +237,6 @@ async function processChanges(csvPath, { dryRun = true } = {}) {
       if (!dryRun) {
         const ids = exactMatches.map(doc => doc._id);
         await Lease.deleteMany({ _id: { $in: ids } });
-        if (lastUpdated && !updatedUids.has(uid)) {
-          await LeaseTracker.upsertLastUpdated(uid, lastUpdated);
-          updatedUids.add(uid);
-        }
       }
       deleteCount += exactMatches.length;
     } else {
@@ -147,10 +266,6 @@ async function processChanges(csvPath, { dryRun = true } = {}) {
         // Treat as exact match, proceed with delete
         if (!dryRun) {
           await Lease.deleteMany({ _id: { $in: candidateMatches.map(d => d._id) } });
-          if (lastUpdated && !updatedUids.has(uid)) {
-            await LeaseTracker.upsertLastUpdated(uid, lastUpdated);
-            updatedUids.add(uid);
-          }
         }
         deleteCount += candidateMatches.length;
         continue;
@@ -167,10 +282,6 @@ async function processChanges(csvPath, { dryRun = true } = {}) {
       const choice = await promptUser('❓ [k]eep DB, [d]elete anyway, [s]kip? (k/d/s): ');
       if (choice === 'd' && !dryRun) {
         await Lease.deleteMany({ _id: { $in: candidateMatches.map(d => d._id) } });
-        if (lastUpdated && !updatedUids.has(uid)) {
-          await LeaseTracker.upsertLastUpdated(uid, lastUpdated);
-          updatedUids.add(uid);
-        }
         deleteCount += candidateMatches.length;
       } else if (choice === 'd') {
         deleteCount += candidateMatches.length;
@@ -200,7 +311,7 @@ async function processChanges(csvPath, { dryRun = true } = {}) {
       if (lastUpdated && !updatedUids.has(uid)) {
         leaseTrackerOps.push({ updateOne: {
           filter: { uid },
-          update: { $set: { lastUpdated } },
+          update: { $set: { lastUpdated, changedFields: changedFieldsMap[uid] || [] } },
           upsert: true
         }});
         updatedUids.add(uid);

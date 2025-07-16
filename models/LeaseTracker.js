@@ -10,13 +10,17 @@ const leaseTrackerSchema = new mongoose.Schema({
   lastUpdated: {
     type: String, // Format: 'YYYY-MM'
     required: true
+  },
+  changedFields: {
+    type: [String], // Array of field names that changed
+    default: []
   }
 });
 
-leaseTrackerSchema.statics.upsertLastUpdated = async function(uid, lastUpdated) {
+leaseTrackerSchema.statics.upsertLastUpdated = async function(uid, lastUpdated, changedFields = []) {
   await this.updateOne(
     { uid },
-    { $set: { lastUpdated } },
+    { $set: { lastUpdated, changedFields } },
     { upsert: true }
   );
 };

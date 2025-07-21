@@ -32,7 +32,7 @@ router.get('/bug-report', (req, res) => {
 
 });
 
-router.post('/bug-report', upload.single('screenshot'), async (req, res) => {
+router.post('/bug-report', requireVerifiedEmail, upload.single('screenshot'), async (req, res) => {
   try {
     const user = await User.findById(req.session.userId);
     if (!user) return res.redirect('/');

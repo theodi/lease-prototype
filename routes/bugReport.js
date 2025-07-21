@@ -32,6 +32,11 @@ router.get('/bug-report', (req, res) => {
 
 });
 
+const requireVerifiedEmail = (req, res, next) => {
+  if (!req.session.userId) return res.redirect('/');
+  next();
+};
+
 router.post('/bug-report', requireVerifiedEmail, upload.single('screenshot'), async (req, res) => {
   try {
     const user = await User.findById(req.session.userId);
@@ -52,11 +57,6 @@ router.post('/bug-report', requireVerifiedEmail, upload.single('screenshot'), as
     res.status(500).render('error', { error: 'Failed to submit bug report' });
   }
 });
-
-const requireVerifiedEmail = (req, res, next) => {
-  if (!req.session.userId) return res.redirect('/');
-  next();
-};
 
 const requireAdminDomain = async (req, res, next) => {
   try {

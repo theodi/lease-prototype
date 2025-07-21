@@ -73,6 +73,13 @@ app.use(async (req, res, next) => {
   next();
 });
 
+//Set testing and development variables
+app.use((req, res, next) => {
+  res.locals.isDevelopment = config.isDevelopment;
+  res.locals.isTesting = config.isTesting;
+  next();
+});
+
 // ─────────────────────────────────────────────
 // Routes
 // ─────────────────────────────────────────────

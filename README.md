@@ -1,4 +1,9 @@
+# ⚠️ Work in Progress
+
+> **Warning:** This READNE is a work in progress. Most of it is AI generated and has yet to be fully checked for error. 
+
 # 🏠 Lease Lnegth Finder Tool
+
 
 A web application for exploring UK government lease data.
 Built with Node.js, Express, MongoDB, and OpenAI for intelligent data interactions.

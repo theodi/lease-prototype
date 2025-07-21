@@ -1,23 +1,38 @@
 <div class="card">
     <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="card-title mb-0">Lease search</h1>
-            <div class="text-end">
-                <div class="text-muted">
-                    <small>Verified as: <a href="/profile" class="text-decoration-none"><%= email %></a></small>
-                </div>
-                <form action="/logout" method="POST" class="d-inline">
-                <button type="submit" class="btn btn-link btn-sm text-decoration-none p-0" aria-label="Log out">
-                    Log out
-                </button>
-                </form>
+        <div class="row align-items-center mb-4">
+        <!-- 🏷️ Title and data update on the left -->
+        <div class="col">
+            <h1 class="card-title mb-1">Lease search</h1>
+            <% if (latestVersion) {
+                const [y, m] = latestVersion.split('-');
+                const updateDate = new Date(y, m - 1);
+                const formatter = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' });
+            %>
+            <div class="text-muted">
+                <small>Data last updated: <%= formatter.format(updateDate) %></small>
             </div>
+            <% } %>
+        </div>
+
+        <!-- ✅ User info and logout on the right -->
+        <div class="col-auto text-end">
+            <div class="text-muted">
+            <small>
+                <a href="/profile" class="text-decoration-none"><%= email %></a>
+            </small>
+            </div>
+            <form action="/logout" method="POST" class="d-inline">
+            <button type="submit" class="btn btn-link btn-sm text-decoration-none p-0" aria-label="Log out">
+                Log out
+            </button>
+            </form>
+        </div>
         </div>
 
         <div class="alert alert-info mb-4">
             <div class="d-flex justify-content-between align-items-center">
-                <span>Searches remaining today: <strong><%= remainingSearches %></strong></span>
-                <small>Resets at midnight</small>
+                <span>You have <strong><%= remainingSearches %></strong> searches remaining today.</span>
             </div>
         </div>
 
@@ -40,16 +55,9 @@
                     <i class="bi bi-search" aria-hidden="true"></i>
                 </button>
                 </div>
-
-                <% if (latestVersion) {
-                    const [y, m] = latestVersion.split('-');
-                    const updateDate = new Date(y, m - 1);
-                    const formatter = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' });
-                %>
                 <div class="text-end text-muted">
-                    <small>Data last updated: <%= formatter.format(updateDate) %></small>
+                    <small><a href='not-found'>Can't find your lease?</a></small>
                 </div>
-                <% } %>
             </div>
             </form>
 

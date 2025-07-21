@@ -60,126 +60,132 @@ const fieldDescriptions = {
         </div>
       <% } %>
       <% const multipleLeases = leases.length > 1; %>
-        <!-- Lease advisory message -->
-        <div id="lease-advice-<%= uniqueId %>" class="mb-3"></div>
-
-        <% if (multipleLeases) { %>
-          <div class="alert alert-info">
-            📌 This lease covers <%= leases.length %> properties. Click a row below to view details for each associated property.
+      <div class="row">
+        <!-- Lease Advice: order-2 on md+, order-1 on mobile -->
+        <div class="col-12 col-md-5 order-1 order-md-2 mb-4 mb-md-0">
+          <!-- Lease advisory message -->
+          <div id="lease-advice-<%= uniqueId %>" class="mb-3"></div>
+          <div class="mt-3">
+            <a href="/lease-guidance?<%= uniqueId ? `uid=${encodeURIComponent(uniqueId)}` : '' %>"
+              class="btn btn-primary w-100" role="button" aria-label="Guidance if you think the lease is incorrect">
+              <i class="bi bi-info-circle me-2" aria-hidden="true"></i>
+              Think this lease is incorrect? Read your options
+            </a>
           </div>
-        <% } %>
-
-
-        <div class="accordion" id="leaseAccordion">
-            <% leases.slice().reverse().forEach((lease, idx) => { %>
-                <% const leaseId = lease._id || idx; %>
-                <% const isLatest = !multipleLeases && idx === 0; %>
-                <div class="accordion-item"
-                    data-lease-id="<%= leaseId %>"
-                    data-reg-order="<%= lease['Reg Order'] || 0 %>">
-                    <h2 class="accordion-header" id="heading-<%= leaseId %>">
-                        <button class="accordion-button<%= isLatest ? '' : ' collapsed' %>" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-<%= leaseId %>" aria-expanded="<%= isLatest ? 'true' : 'false' %>" aria-controls="collapse-<%= leaseId %>">
-                            <%= lease['Associated Property Description'] %>
-                        </button>
-                    </h2>
-                    <div id="collapse-<%= leaseId %>" class="accordion-collapse collapse<%= isLatest ? ' show' : '' %>" aria-labelledby="heading-<%= leaseId %>" data-bs-parent="#leaseAccordion">
-                        <div class="accordion-body">
-
-                            <!-- 🔹 Source Data Table -->
-                             <h5 class="mt-3">Land Registry Source Data</h5>
-                            <table class="table table-bordered">
-                              <caption class="visually-hidden">Original lease data</caption>
-                              <tbody>
-                                <% Object.entries(lease).forEach(([key, value]) => { %>
-                                  <% if (key !== '_id' && key !== '__v' && key !== 'createdAt' && key !== 'updatedAt') { %>
-                                    <tr data-field="<%= key %>">
-                                      <th scope="row">
-                                        <% if (fieldDescriptions[key]) { %>
-                                          <span
-                                            tabindex="0"
-                                            data-bs-toggle="tooltip"
-                                            title="<%= fieldDescriptions[key] %>"
-                                          >
-                                            <%= key %>
-                                            <span class="visually-hidden"> – <%= fieldDescriptions[key] %></span>
-                                          </span>
-                                        <% } else { %>
-                                          <%= key %>
-                                        <% } %>
-                                      </th>
-                                      <td class="wrap-text">
-                                        <% if (key === 'Price Paid' && value && !isNaN(value)) { %>
-                                          £<%= new Intl.NumberFormat('en-GB').format(parseFloat(value)) %>
-                                        <% } else { %>
-                                          <%= value %>
-                                        <% } %>
-                                      </td>
-                                    </tr>
-                                  <% } %>
-                                <% }); %>
-                              </tbody>
-                            </table>
-
-                            <!-- 🔸 Derived Data Table -->
-                            <h5 class="mt-4">Derived Lease Information</h5>
-                            <table class="table table-bordered">
-                            <caption class="visually-hidden">Derived lease calculations</caption>
-                            <tbody>
-                                <tr>
-                                <th scope="row">Remaining Term</th>
-                                <td id="remaining-term-<%= leaseId %>">
-                                    <span class="text-muted">Calculating...</span>
-                                </td>
-                                </tr>
-                                <tr>
-                                <th scope="row">Expiry Date</th>
-                                <td id="expiry-date-<%= leaseId %>">
-                                    <span class="text-muted">Calculating...</span>
-                                </td>
-                                </tr>
-                                <tr>
-                                <th scope="row">Derived By</th>
-                                <td id="derived-by-<%= leaseId %>">
-                                    <span class="text-muted">Detecting...</span>
-                                </td>
-                                </tr>
-                            </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            <% }); %>
         </div>
-        <!-- 🛈 Guidance CTA for possible issues -->
-        <div class="mt-4">
-          <a href="/lease-guidance?<%= uniqueId ? `uid=${encodeURIComponent(uniqueId)}` : '' %>"
-            class="btn btn-primary w-100" role="button" aria-label="Guidance if you think the lease is incorrect">
-            <i class="bi bi-info-circle me-2" aria-hidden="true"></i>
-            Think this lease is incorrect? Read your options
-          </a>
-        </div>
-        <div class="d-flex justify-content-between align-items-center mt-3">
-            <a href="/app" class="btn btn-secondary">Back to Search</a>
-            <div id="bookmark-controls" aria-label="Bookmark controls">
-              <% if (!isBookmarked) { %>
-                <button id="bookmark-btn"
-                        class="btn btn-primary"
-                        aria-pressed="false"
-                        <%= !canBookmark ? 'disabled' : '' %>>
-                  <span class="visually-hidden">Bookmark this lease</span>
-                  <i class="bi bi-bookmark-plus" aria-hidden="true"></i> Bookmark
-                </button>
-                <% if (!canBookmark) { %>
-                  <div class="form-text text-danger mt-1">You’ve reached your bookmark limit.</div>
-                <% } %>
-              <% } else { %>
-                <button id="unbookmark-btn" class="btn btn-danger" aria-pressed="true">
-                  <span class="visually-hidden">Remove bookmark for this lease</span>
-                  <i class="bi bi-bookmark-dash" aria-hidden="true"></i> Remove bookmark
-                </button>
-              <% } %>
+        <!-- Lease Details: order-1 on md+, order-2 on mobile -->
+        <div class="col-12 col-md-7 order-2 order-md-1">
+          <% if (multipleLeases) { %>
+            <div class="alert alert-info">
+              📌 This lease covers <%= leases.length %> properties. Click a row below to view details for each associated property.
             </div>
+          <% } %>
+
+          <div class="accordion" id="leaseAccordion">
+              <% leases.slice().reverse().forEach((lease, idx) => { %>
+                  <% const leaseId = lease._id || idx; %>
+                  <% const isLatest = !multipleLeases && idx === 0; %>
+                  <div class="accordion-item"
+                      data-lease-id="<%= leaseId %>"
+                      data-reg-order="<%= lease['Reg Order'] || 0 %>">
+                      <h2 class="accordion-header" id="heading-<%= leaseId %>">
+                          <button class="accordion-button<%= isLatest ? '' : ' collapsed' %>" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-<%= leaseId %>" aria-expanded="<%= isLatest ? 'true' : 'false' %>" aria-controls="collapse-<%= leaseId %>">
+                              <%= lease['Associated Property Description'] %>
+                          </button>
+                      </h2>
+                      <div id="collapse-<%= leaseId %>" class="accordion-collapse collapse<%= isLatest ? ' show' : '' %>" aria-labelledby="heading-<%= leaseId %>" data-bs-parent="#leaseAccordion">
+                          <div class="accordion-body">
+
+                              <!-- 🔹 Source Data Table -->
+                               <h5 class="mt-3">Land Registry Source Data</h5>
+                              <table class="table table-bordered">
+                                <caption class="visually-hidden">Original lease data</caption>
+                                <tbody>
+                                  <% Object.entries(lease).forEach(([key, value]) => { %>
+                                    <% if (key !== '_id' && key !== '__v' && key !== 'createdAt' && key !== 'updatedAt') { %>
+                                      <tr data-field="<%= key %>">
+                                        <th scope="row">
+                                          <% if (fieldDescriptions[key]) { %>
+                                            <span
+                                              tabindex="0"
+                                              data-bs-toggle="tooltip"
+                                              title="<%= fieldDescriptions[key] %>"
+                                            >
+                                              <%= key %>
+                                              <span class="visually-hidden"> – <%= fieldDescriptions[key] %></span>
+                                            </span>
+                                          <% } else { %>
+                                            <%= key %>
+                                          <% } %>
+                                        </th>
+                                        <td class="wrap-text">
+                                          <% if (key === 'Price Paid' && value && !isNaN(value)) { %>
+                                            £<%= new Intl.NumberFormat('en-GB').format(parseFloat(value)) %>
+                                          <% } else { %>
+                                            <%= value %>
+                                          <% } %>
+                                        </td>
+                                      </tr>
+                                    <% } %>
+                                  <% }); %>
+                                </tbody>
+                              </table>
+
+                              <!-- 🔸 Derived Data Table -->
+                              <h5 class="mt-4">Derived Lease Information</h5>
+                              <table class="table table-bordered">
+                              <caption class="visually-hidden">Derived lease calculations</caption>
+                              <tbody>
+                                  <tr>
+                                  <th scope="row">Remaining Term</th>
+                                  <td id="remaining-term-<%= leaseId %>">
+                                      <span class="text-muted">Calculating...</span>
+                                  </td>
+                                  </tr>
+                                  <tr>
+                                  <th scope="row">Expiry Date</th>
+                                  <td id="expiry-date-<%= leaseId %>">
+                                      <span class="text-muted">Calculating...</span>
+                                  </td>
+                                  </tr>
+                                  <tr>
+                                  <th scope="row">Derived By</th>
+                                  <td id="derived-by-<%= leaseId %>">
+                                      <span class="text-muted">Detecting...</span>
+                                  </td>
+                                  </tr>
+                              </tbody>
+                              </table>
+                          </div>
+                      </div>
+                  </div>
+              <% }); %>
+          </div>
         </div>
+      </div>
+      <!-- 🛈 Guidance CTA for possible issues -->
+      <div class="d-flex justify-content-between align-items-center mt-3">
+          <a href="/app" class="btn btn-secondary">Back to Search</a>
+          <div id="bookmark-controls" aria-label="Bookmark controls">
+            <% if (!isBookmarked) { %>
+              <button id="bookmark-btn"
+                      class="btn btn-primary"
+                      aria-pressed="false"
+                      <%= !canBookmark ? 'disabled' : '' %>>
+                <span class="visually-hidden">Bookmark this lease</span>
+                <i class="bi bi-bookmark-plus" aria-hidden="true"></i> Bookmark
+              </button>
+              <% if (!canBookmark) { %>
+                <div class="form-text text-danger mt-1">You’ve reached your bookmark limit.</div>
+              <% } %>
+            <% } else { %>
+              <button id="unbookmark-btn" class="btn btn-danger" aria-pressed="true">
+                <span class="visually-hidden">Remove bookmark for this lease</span>
+                <i class="bi bi-bookmark-dash" aria-hidden="true"></i> Remove bookmark
+              </button>
+            <% } %>
+          </div>
+      </div>
     </div>
 </div>
 <script>
@@ -276,27 +282,177 @@ const fieldDescriptions = {
 
     if (bestLease) {
       const now = new Date();
-      let yearsLeft = bestLease.expiryDate.getFullYear() - now.getFullYear();
-      if (
-        bestLease.expiryDate.getMonth() < now.getMonth() ||
+      const formattedDate = now.toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+
+      const address = '<%= leases[0]?.["Register Property Description"] || "Unknown" %>';
+      const remainingText = document.getElementById(`remaining-term-${bestLease.id}`)?.textContent || '';
+      const yearsLeft = bestLease.expiryDate.getFullYear() - now.getFullYear() -
+        (bestLease.expiryDate.getMonth() < now.getMonth() ||
         (bestLease.expiryDate.getMonth() === now.getMonth() &&
-          bestLease.expiryDate.getDate() < now.getDate())
-      ) {
-        yearsLeft -= 1;
-      }
+        bestLease.expiryDate.getDate() < now.getDate()) ? 1 : 0);
 
       const target = document.getElementById(`lease-advice-${uniqueId}`);
       if (target) {
         let html = '';
-        if (yearsLeft < 0) {
-          html = `<div class="alert alert-danger">❌ This lease has expired.</div>`;
-        } else if (yearsLeft > 100) {
-          html = `<div class="alert alert-success">🎉 Your lease has over 100 years years remaining — you can relax.</div>`;
+        if (yearsLeft > 90) {
+          html = `
+            <div class="alert alert-success">
+              <p>There are <strong>${remainingText}</strong> remaining on the lease for <strong>${address}</strong> as of <strong>${formattedDate}</strong>.</p>
+              <p><span class="emblem-green">🟢 No immediate action required</span></p>
+              <p>Your lease term is over 90 years, so there is no immediate need to extend your lease.</p>
+              <p>When your lease falls below 90 years, you may want to start thinking about the process to extend your lease.</p>
+              <p>For more information on the implications of shorter leases and lease extensions, see:</p>
+              <ul>
+                <li>
+                  <a href="https://www.lease-advice.org/fact-sheet/lease-extension-flats/" target="_blank" rel="noopener noreferrer">
+                    Lease extension of flats <span class="visually-hidden">(opens in a new tab)</span>
+                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                  </a>
+                </li>
+                <li>
+                  <a href="https://www.lease-advice.org/faq/should-i-wait-to-extend-my-lease-i-have-heard-that-planned-changes-to-the-law-could-make-lease-extension-cheaper/" target="_blank" rel="noopener noreferrer">
+                    Should I extend my lease? <span class="visually-hidden">(opens in a new tab)</span>
+                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                  </a>
+                </li>
+              </ul>
+              <p>The government has announced major leasehold reforms.
+                <em>
+                  <a href="https://www.lease-advice.org/news-items/" target="_blank" rel="noopener noreferrer">
+                    Find out about the latest leasehold news <span class="visually-hidden">(opens in a new tab)</span>
+                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                  </a>
+                </em>
+              </p>
+            </div>
+          `;
         } else if (yearsLeft >= 80) {
-          html = `<div class="alert alert-warning">⚠️ Your lease has between 80 and 100 years remaining — you should strongly consider extending it now.</div>`;
+          html = `
+            <div class="alert alert-warning">
+              <p>There are <strong>${remainingText}</strong> remaining on the lease for <strong>${address}</strong> as of <strong>${formattedDate}</strong>.</p>
+              <p><span class="emblem-orange">🟠 You may want to consider extending your lease</span></p>
+              <p>Your lease has between 80 and 89 years remaining. As a lease approaches 80 years, mortgages can become more expensive, and it can be more challenging to re-mortgage or to sell.</p>
+              <p>Extending a lease with less than 80 years may be more expensive due to 'marriage value'.</p>
+              <p>We recommend considering an extension before the lease drops below 81 years.</p>
+              <p>The government has announced major leasehold reforms.
+                <em>
+                  <a href="https://www.lease-advice.org/news-items/" target="_blank" rel="noopener noreferrer">
+                    Find out about the latest leasehold news <span class="visually-hidden">(opens in a new tab)</span>
+                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                  </a>
+                </em>
+              </p>
+              <p>Find out more below:</p>
+              <ul>
+                <li>
+                  <a href="https://www.lease-advice.org/fact-sheet/lease-extension-flats/" target="_blank" rel="noopener noreferrer">
+                    Lease extension of flats <span class="visually-hidden">(opens in a new tab)</span>
+                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                  </a>
+                </li>
+                <li>
+                  <a href="https://www.lease-advice.org/faq/should-i-wait-to-extend-my-lease-i-have-heard-that-planned-changes-to-the-law-could-make-lease-extension-cheaper/" target="_blank" rel="noopener noreferrer">
+                    Should I extend my lease? <span class="visually-hidden">(opens in a new tab)</span>
+                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                  </a>
+                </li>
+                <li>
+                  <a href="https://www.lease-advice.org/calculator/" target="_blank" rel="noopener noreferrer">
+                    Lease extension calculator for flats – The Leasehold Advisory Service
+                    <span class="visually-hidden">(opens in a new tab)</span>
+                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                  </a>
+                </li>
+                <li>
+                  <a href="https://lendershandbook.ukfinance.org.uk/lenders-handbook/englandandwales/question-list/1846/" target="_blank" rel="noopener noreferrer">
+                    Minimum unexpired lease term for each mortgage lender
+                    <span class="visually-hidden">(opens in a new tab)</span>
+                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                  </a>
+                </li>
+                <li>
+                  <a href="https://www.lease-advice.org/lease-glossary/marriage-value/#:~:text=Marriage%20value%20is%20the%20increase%20in%20the%20value,the%20additional%20market%20value%20of%20the%20longer%20lease." target="_blank" rel="noopener noreferrer">
+                    Marriage value
+                    <span class="visually-hidden">(opens in a new tab)</span>
+                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                  </a>
+                </li>
+              </ul>
+            </div>
+          `;
         } else {
-          html = `<div class="alert alert-danger">🚨 Your lease has around fewer that 80 years remaining — you should seek legal advice as soon as possible.</div>`;
+          html = `<div class="alert alert-danger">`;
+          if (yearsLeft < 0) {
+            html += `
+                <p>The lease for <strong>${address}</strong> has expired.</p>
+            `;
+          } else {
+            html += `<p>There are <strong>${remainingText}</strong> remaining on the lease for <strong>${address}</strong> as of <strong>${formattedDate}</strong>.</p>`;
+          }
+          html += `<p><span class="emblem-red">🔴 Seek urgent advice regarding extending your lease</span></p>
+              <p>Your lease has less than 80 years left. Extending a lease with less than 80 years is more expensive due to ‘marriage value’.</p>
+              <p><strong>What is marriage value?</strong><br>
+              It’s the increase in value after a lease extension — payable if the lease has under 80 years.</p>
+              <p><strong>Mortgages and property sale:</strong><br>
+              Mortgages can become more expensive. Selling or re-mortgaging may be difficult with a short lease.</p>
+              <p>If your lease has already expired, you can find out more about your
+                <a href="https://www.lease-advice.org/advice-guide/security-tenure/" target="_blank" rel="noopener noreferrer">
+                    rights <span class="visually-hidden">(opens in a new tab)</span>
+                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                  </a>.
+              </p>
+              <p>Find out more below:</p>
+              <ul>
+                 <li>
+                  <a href="https://www.lease-advice.org/fact-sheet/lease-extension-flats/" target="_blank" rel="noopener noreferrer">
+                    Lease extension of flats <span class="visually-hidden">(opens in a new tab)</span>
+                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                  </a>
+                </li>
+                <li>
+                  <a href="https://www.lease-advice.org/faq/should-i-wait-to-extend-my-lease-i-have-heard-that-planned-changes-to-the-law-could-make-lease-extension-cheaper/" target="_blank" rel="noopener noreferrer">
+                    Should I extend my lease? <span class="visually-hidden">(opens in a new tab)</span>
+                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                  </a>
+                </li>
+                <li>
+                  <a href="https://www.lease-advice.org/calculator/" target="_blank" rel="noopener noreferrer">
+                    Lease extension calculator for flats – The Leasehold Advisory Service
+                    <span class="visually-hidden">(opens in a new tab)</span>
+                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                  </a>
+                </li>
+                <li>
+                  <a href="https://www.lease-advice.org/advice-guide/security-tenure/" target="_blank" rel="noopener noreferrer">
+                    Security of tenure
+                    <span class="visually-hidden">(opens in a new tab)</span>
+                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                  </a>
+                </li>
+                <li>
+                  <a href="https://www.lease-advice.org/lease-glossary/marriage-value/#:~:text=Marriage%20value%20is%20the%20increase%20in%20the%20value,the%20additional%20market%20value%20of%20the%20longer%20lease." target="_blank" rel="noopener noreferrer">
+                    Marriage value
+                    <span class="visually-hidden">(opens in a new tab)</span>
+                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                  </a>
+                </li>
+              </ul>
+              <p>Keep in mind that the government has announced major leasehold reforms.
+                <em>
+                  <a href="https://www.lease-advice.org/news-items/" target="_blank" rel="noopener noreferrer">
+                    Find out about the latest leasehold news <span class="visually-hidden">(opens in a new tab)</span>
+                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                  </a>
+                </em>
+              </p>
+            </div>
+          `;
         }
+
         target.innerHTML = html;
       }
     }

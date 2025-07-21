@@ -17,6 +17,10 @@ router.get('/lease-guidance', (req, res) => {
   const { uid } = req.query;
   res.render('lease-guidance', { uid });
 });
+router.get('/not-found', (req, res) => {
+  const { uid } = req.query;
+  res.render('not-found-help', { uid });
+});
 
 // Main app page
 router.get('/app', requireVerifiedEmail, async (req, res) => {

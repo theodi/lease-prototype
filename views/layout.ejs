@@ -5,22 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lease search tool</title>
     <link href="/lib/bootstrap.min.css" rel="stylesheet">
+    <link href="/lib/bootstrap-icons.min.css" rel="stylesheet">
     <link href="/style.css" rel="stylesheet">
     <style>
         body {
-            padding-top: 2rem;
-            background-color: #f8f9fa;
+            background-color: white;
+            font-family: Arial,sans-serif !important;
         }
         .container {
-            max-width: 600px;
+            max-width: 1280px;
         }
         .card {
-            border-radius: 10px;
-            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            border: none;
         }
+        .card-body .text-muted a,
+        footer.text-muted a  {
+            color: #003C71 !important;
+        }
+
     </style>
 </head>
 <body>
+    <%- include('partials/header') %>
     <a href="#main-content" class="visually-hidden-focusable">Skip to main content</a>
     <div class="container">
         <main id="main-content" role="main" aria-label="Main content">
@@ -30,6 +36,7 @@
     <footer class="text-center mt-2 small text-muted">
         <p><a href="/bug-report" class="text-decoration-none">Report a problem with this tool</a></p>
     </footer>
+    <%- include('partials/footer') %>
     <script src="/lib/bootstrap.bundle.min.js"></script>
 </body>
 </html>

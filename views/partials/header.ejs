@@ -1,0 +1,248 @@
+<!-- Top banner -->
+ <style>
+    .top-banner {
+        background: #76d2e9 !important;
+        text-align: center;
+        height: 35px;
+        line-height: 34px;
+        vertical-align: middle;
+    }
+    .top-banner p {
+        letter-spacing: 0.5px !important;
+        color: #003c71 !important;
+        font-weight: 700;
+        font-size: 13px;
+        display: block;
+        top: -7px;
+        position: relative;
+    }
+    .top-nav li a {
+        color: #fff;
+        text-transform: uppercase;
+        font-size: 10px;
+        line-height: 0px;
+        letter-spacing: .8px;
+    }
+    .bottom-nav {
+        flex-direction: row;
+        justify-content: space-between;
+        width: 80%;
+    }
+    .bottom-nav li a {
+        font-family: DM Sans,sans-serif;
+        position: relative !important;
+        color: #fff !important;
+        font-size: 14px !important;
+        text-decoration: none !important;
+        font-weight: 700 !important;
+        padding-bottom: 0px !important;
+        display: inline-block !important;
+        padding-top: 5px !important;
+    }
+    .navbar {
+        background-color: #003C71 !important;
+    }
+    .navbar-brand {
+      margin-left: 2rem;
+      margin-top: 23px;
+    }
+    .calculator-button {
+        background-color: #87e3f4 !important;
+        color: #003c71 !important;
+        padding: 6px 20px;
+        border-radius: 20px;
+        font-size: 10px;
+        font-weight: 500;
+        display: -ms-flexbox;
+        display: flex;
+        -ms-flex-align: center;
+        align-items: center;
+        gap: 5px;
+        width: 230px;
+        height: 38px;
+
+    }
+    .calculator-button .bi-calculator {
+        font-size: 16px;
+    }
+    .dropdown-menu {
+        position: fixed;
+        top: 100%;            /* Just below the navbar */
+        left: calc(-0.55 * 100vw) !important;
+        width: 120vw;
+        background: #003C71;
+        color: #FFF;
+        padding: 30px 0;
+        z-index: 1050;         /* Higher than navbar */
+        border: none;
+    }
+
+    .dropdown-menu-columns {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr); /* 3 columns */
+        gap: 0.5rem;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .nav-mobile li a {
+        color: white !important;
+    }
+
+    .desktop-calc {
+      margin-right: 2rem;
+      margin-top: 48px;
+    }
+
+    @media (min-width: 992px) {
+        .navbar-expand-lg .navbar-collapse {
+            margin-top: 36px !important;
+        }
+    }
+    @media (max-width: 768px) {
+      .dropdown-menu-columns {
+        grid-template-columns: 1fr;
+        }
+        .navbar-brand {
+          margin-left: 0.5rem;
+        }
+    }
+
+ </style>
+<div class="top-banner text-center py-2 bg-light text-dark" style="letter-spacing: 0.5px;">
+  <p>Government funded, independent advice for residential leaseholders and park home residents</p>
+</div>
+
+<!-- Main Navigation -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+  <div class="container-fluid">
+    <!-- Logo -->
+    <a class="navbar-brand" href="/">
+      <img src="https://www.lease-advice.org/wp-content/themes/las/assets/images/LEASE_Logo_RGB_Strapline_OnDark.png" alt="LEASE Logo" style="width: 219px;">
+      <span class="visually-hidden">The Leasehold Advisory Service</span>
+    </a>
+
+    <!-- Mobile toggle -->
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#leaseNavbar" aria-controls="leaseNavbar" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <!-- Navbar content -->
+    <div class="collapse navbar-collapse flex-column align-items-start" id="leaseNavbar">
+     <div class="d-flex flex-column justify-content-between align-items-start"></div>
+      <!-- Top nav links -->
+      <ul class="navbar-nav mb-0 d-none d-lg-flex top-nav">
+        <li class="nav-item me-3"><a class="nav-link text-white" href="https://parkhomes.lease-advice.org/">Park homes</a></li>
+        <li class="nav-item me-3"><a class="nav-link text-white" href="https://learn.lease-advice.org/">E-learning</a></li>
+        <li class="nav-item me-3"><a class="nav-link text-white" href="https://www.lease-advice.org/wales-page/">Wales</a></li>
+      </ul>
+      <br/>
+      <!-- Bottom nav (desktop only) -->
+      <ul class="navbar-nav bottom-nav mt-0 mb-0 d-none d-lg-flex">
+        <li class="nav-item"><a class="nav-link" href="https://www.lease-advice.org/fire-safety/">Fire Safety</a></li>
+        <li class="nav-item"><a class="nav-link" href="https://www.lease-advice.org/topics/service-charges/">Service Charges</a></li>
+        <li class="nav-item"><a class="nav-link" href="https://www.lease-advice.org/topics/management-of-a-building/">Managing a building</a></li>
+
+        <!-- Dropdown menu -->
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="topicsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            Other topics
+          </a>
+          <ul class="dropdown-menu" aria-labelledby="topicsDropdown">
+            <div class="dropdown-menu-columns">
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=administration-charges">Administration charges</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=alternative-dispute-resolution">Alternative Dispute Resolution</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=application-to-the-first-tier-tribunal-property-chamber">Application to the First-tier Tribunal</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=application-to-the-lvt-wales">Application to the LVT (Wales)</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=appointment-of-a-manager">Appointment of a Manager</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=appointment-of-a-surveyor">Appointment of a Surveyor</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=breach-of-lease">Breach of Lease</a></li>
+            <li><a class="dropdown-item" href="https://lease-advice.org/topics/?topic=purchasesale">Buying and selling</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=buying-the-freehold-of-flats">Buying the Freehold of Flats</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=commonhold">Commonhold</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=fire-safety">Fire Safety</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=general">General</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=ground-rent">Ground Rent</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=houses-buying-the-freehold-and-lease-extension">Houses – Buying the Freehold and Lease Extension</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=houses-general-issues">Houses – General Issues</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=insurance">Insurance</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=lease-extension">Lease Extension</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=lease-variations">Lease Variations</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=leasehold-and-freehold-reform">Leasehold and Freehold Reform</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=licensesconsent">Licenses/Consent</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=management-of-a-building">Management of a building</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=retirement-housing">Retirement Housing</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=right-of-first-refusal">Right of First Refusal</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=right-to-buy">Right to Buy</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=right-to-manage">Right to Manage</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=rights-and-obligations-under-a-lease">Rights and obligations under a lease</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=section-20-consultation">Section 20 Consultation</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=service-charges">Service charges</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=shared-ownership">Shared ownership</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=understanding-your-lease">Understanding your lease</a></li>
+            </div>
+          </ul>
+        </li>
+        <li class="nav-item"><a class="nav-link" href="https://clients.lease-advice.org/#/">Contact</a></li>
+      </ul>
+      <ul class="navbar-nav d-lg-none nav-mobile">
+        <li class="nav-item"><a class="nav-link" href="https://parkhomes.lease-advice.org/">Park homes</a></li>
+        <li class="nav-item"><a class="nav-link" href="https://learn.lease-advice.org/">E-learning</a></li>
+        <li class="nav-item"><a class="nav-link" href="https://www.lease-advice.org/wales-page/">Wales</a></li>
+        <li class="nav-item"><a class="nav-link" href="https://www.lease-advice.org/fire-safety/">Fire Safety</a></li>
+        <li class="nav-item"><a class="nav-link" href="https://www.lease-advice.org/topics/service-charges/">Service Charges</a></li>
+        <li class="nav-item"><a class="nav-link" href="https://www.lease-advice.org/topics/management-of-a-building/">Managing a building</a></li>
+
+        <!-- Dropdown menu -->
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="topicsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            Other topics
+          </a>
+          <ul class="dropdown-menu dropdown-mobile" aria-labelledby="topicsDropdown">
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=administration-charges">Administration charges</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=alternative-dispute-resolution">Alternative Dispute Resolution</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=application-to-the-first-tier-tribunal-property-chamber">Application to the First-tier Tribunal</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=application-to-the-lvt-wales">Application to the LVT (Wales)</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=appointment-of-a-manager">Appointment of a Manager</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=appointment-of-a-surveyor">Appointment of a Surveyor</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=breach-of-lease">Breach of Lease</a></li>
+            <li><a class="dropdown-item" href="https://lease-advice.org/topics/?topic=purchasesale">Buying and selling</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=buying-the-freehold-of-flats">Buying the Freehold of Flats</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=commonhold">Commonhold</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=fire-safety">Fire Safety</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=general">General</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=ground-rent">Ground Rent</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=houses-buying-the-freehold-and-lease-extension">Houses – Buying the Freehold and Lease Extension</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=houses-general-issues">Houses – General Issues</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=insurance">Insurance</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=lease-extension">Lease Extension</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=lease-variations">Lease Variations</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=leasehold-and-freehold-reform">Leasehold and Freehold Reform</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=licensesconsent">Licenses/Consent</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=management-of-a-building">Management of a building</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=retirement-housing">Retirement Housing</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=right-of-first-refusal">Right of First Refusal</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=right-to-buy">Right to Buy</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=right-to-manage">Right to Manage</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=rights-and-obligations-under-a-lease">Rights and obligations under a lease</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=section-20-consultation">Section 20 Consultation</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=service-charges">Service charges</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=shared-ownership">Shared ownership</a></li>
+            <li><a class="dropdown-item" href="https://www.lease-advice.org/topics/?topic=understanding-your-lease">Understanding your lease</a></li>
+          </ul>
+        </li>
+        <li class="nav-item"><a class="nav-link" href="https://clients.lease-advice.org/#/">Contact</a></li>
+        <a href="https://www.lease-advice.org/calculator/" class="btn btn-light text-primary calculator-button">
+          <i class="bi bi-calculator me-1" aria-hidden="true"></i>LEASE EXTENSION CALCULATOR
+        </a>
+      </ul>
+      </div>
+      <!-- CTA Calculator button -->
+       <div class="ms-auto d-none d-lg-flex align-items-end desktop-calc">
+        <a href="https://www.lease-advice.org/calculator/" class="btn btn-light text-primary calculator-button">
+          <i class="bi bi-calculator me-1" aria-hidden="true"></i>LEASE EXTENSION CALCULATOR
+        </a>
+      </div>
+    </div>
+  </div>
+</nav>

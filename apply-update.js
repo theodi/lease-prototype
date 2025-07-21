@@ -239,9 +239,6 @@ async function processChanges(csvPath, { dryRun = true } = {}) {
   console.log(` - Manual/Skipped: ${unknownCount}`);
   console.log(` - Skipped (bad columns): ${skippedCount}`);
 
-  await mongoose.disconnect();
-  rl.close();
-
   //Update the database
 
   if (!dryRun && lastUpdated) {
@@ -259,6 +256,10 @@ async function processChanges(csvPath, { dryRun = true } = {}) {
       { upsert: true }
     );
   }
+
+  await mongoose.disconnect();
+  rl.close();
+
 }
 
 // Usage: node run-changes.js path/to/file.csv --apply

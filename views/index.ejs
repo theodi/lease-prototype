@@ -1,7 +1,19 @@
 <div class="card">
   <div class="card-body">
-    <h1 class="card-title text-center mb-4">Welcome</h1>
-
+    <h1 class="card-title text-center mb-4">Check your lease length</h1>
+    <p>If you own a leasehold property, your ownership lasts for the period of time set out in the lease. As the number of years of the lease gets lower, the value of the lease decreases and it becomes more expensive to extend the lease.</p>
+    <p>This is why it is often a good idea to extend the lease especially if you want to sell or mortgage the property. Sometimes it is difficult to sell a property with a short lease because many mortgage lenders won’t lend on properties with short leases.</p>
+    <h2 class="mt-2">What does check your lease length do?</h2>
+    <p>This tool allows you to check the length of a lease on a property in England and Wales.</p>
+    <p>As well as providing the remaining term of the lease, the tool also provides information about whether you should consider extending your lease and how to do so.</p>
+    <h2 class="mt-2">What data is used?</h2>
+    <p>To provide this information, the tool uses information held by HM Land Registry(HMLR).</p>
+    <p>Check your lease length uses the most up to date data from HMLR.</p>
+    <p>To use the tool, you will need to provide an email address. We will store your email address and IP address so we know who has accessed the information. This is required by HMLR for us to provide this service.</p>
+    <p>Any personal information provided will be stored securely in line with our <a href="https://www.lease-advice.org/privacy-policy-and-cookies/" target="_blank" rel="noopener noreferrer">
+        privacy policy<span class="visually-hidden">(opens in a new tab)</span>
+        <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+      </a>.</p>
     <% if (typeof error !== 'undefined') { %>
       <div class="alert alert-danger" role="alert" aria-live="assertive">
         <%= error %>
@@ -20,26 +32,6 @@
         <div id="emailHelp" class="form-text">
           We'll send a verification code to your email address.
           <br>
-          <a href="#" class="link-secondary small" data-bs-toggle="collapse" data-bs-target="#whyEmail" aria-expanded="false" aria-controls="whyEmail">
-            Why do we need your email?
-          </a>
-        </div>
-        <div class="collapse mt-2" id="whyEmail">
-            <div class="card card-body bg-light small">
-                We are required to collect and retain your email address and IP address as part of our licence with HM Land Registry, who supply the lease data used in this tool.<br>&nbsp;<br>
-                This information may be accessed by Land Registry staff, their authorised representatives, or appointed auditors for the purpose of:
-                <ul class="mt-2 mb-2">
-                <li>Ensuring we comply with the terms of the licence</li>
-                <li>Preventing or detecting fraud or misuse of the data</li>
-                </ul>
-                &nbsp;<br>
-                Access may be immediate in cases of suspected fraud, or given with notice for routine audits. Your information will never be used for marketing, and any data obtained in audits must remain confidential.
-                <br>&nbsp;<br>
-                We retain this information for up to 12 months, in line with our licence obligations.
-                <br>&nbsp;<br>
-                For more information about your privacy and our use of cookies, please see
-                <a href="https://www.lease-advice.org/privacy-policy-and-cookies/" target="_blank" rel="noopener">our Privacy and Cookies Policy</a>
-            </div>
         </div>
       </div>
 

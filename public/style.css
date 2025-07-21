@@ -19,3 +19,10 @@
   --bs-btn-disabled-bg: #003C71;
   --bs-btn-disabled-border-color: #003C71;
 }
+.alert-info {
+  background-color: inherit !important;
+  border-color: #002140 !important;
+}
+.alert-info ul li {
+  margin-bottom: 0.5rem;
+}

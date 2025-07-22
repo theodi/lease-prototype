@@ -1,4 +1,4 @@
-# 🏠 Lease Lnegth Finder Tool
+# 🏠 Lease Length Finder Tool
 
 A web application for exploring UK government lease data.
 Built with Node.js, Express, MongoDB, and OpenAI for intelligent data interactions.

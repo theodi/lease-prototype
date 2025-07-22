@@ -345,12 +345,23 @@ Includes:
 
 ## Bug reports
 
-The application includes a self-contained bug reporting system, allowing users to report issues directly from the user interface.
+The application includes a self-contained bug reporting system, allowing users to report issues directly from the user interface. The system is designed with multiple layers of security to protect against malicious injection and abuse.
 
 Users can submit a bug report that includes:
-* A description of the problem.
-* The URL of the page where the bug occurred.
-* An optional screenshot to provide visual context.
+* A description of the problem (validated and sanitized on the server).
+* The URL of the page where the bug occurred (validated and sanitized).
+* An optional screenshot to provide visual context (only image files up to 2MB are accepted).
+
+**Security features:**
+- **File uploads**: Only image files (`jpeg`, `png`, `gif`, `webp`) up to 2MB are accepted. Files are served with strict content-type headers and are not accessible as arbitrary files.
+- **Input validation**: All user input is validated and sanitized on the server to prevent XSS and injection attacks.
+- **Rate limiting**: Each user can only submit a limited number of bug reports per day (default: 5). This limit is enforced per user (not per IP) and is configurable via the `BUG_REPORT_RATE_LIMIT_PER_DAY` environment variable.
+- **Authentication**: Only authenticated and verified users can submit bug reports.
+
+**To configure the daily bug report submission limit**, set the following in your `.env` file:
+```
+BUG_REPORT_RATE_LIMIT_PER_DAY=5
+```
 
 Submitted reports are stored in the database. Administrators (users from domains listed in `ALLOWED_DOMAINS`) can view all bug reports from the `/bugs` page, which is linked from the main admin dashboard.
 

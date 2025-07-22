@@ -1,5 +1,7 @@
 import express from 'express';
 import multer from 'multer';
+import rateLimit from 'express-rate-limit';
+import validator from 'validator';
 import path from 'path';
 import fs from 'fs';
 import BugReport from '../models/BugReport.js';
@@ -21,15 +23,45 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ storage });
+// Rate limiting: configurable via config.bugReportRateLimitPerDay
+const bugReportLimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000, // 24 hours
+  max: config.bugReportRateLimitPerDay || 5, // Default 5 per day
+  message: 'You have reached the daily bug report submission limit.',
+  keyGenerator: (req) => req.session.userId || req.ip
+});
 
-router.get('/bug-report', (req, res) => {
+// Multer: file type and size limits
+const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+const upload = multer({
+  storage,
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+  fileFilter: (req, file, cb) => {
+    if (!allowedTypes.includes(file.mimetype)) {
+      return cb(new Error('Only image files are allowed!'), false);
+    }
+    cb(null, true);
+  }
+});
+
+// Serve uploaded screenshots with strict headers
+router.get('/uploads/screenshots/:filename', requireVerifiedEmail, (req, res) => {
+  const file = path.join(screenshotDir, req.params.filename);
+  // Only allow files with allowed extensions
+  const ext = path.extname(file).toLowerCase();
+  if (!['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) {
+    return res.status(403).send('Forbidden');
+  }
+  res.setHeader('Content-Type', `image/${ext.replace('.', '')}`);
+  res.setHeader('Content-Disposition', 'inline');
+  res.sendFile(path.resolve(file));
+});
+
+router.get('/bug-report', requireVerifiedEmail, bugReportLimiter, (req, res) => {
   if (!req.session.userId) return res.redirect('/');
-
   res.render('bug-report', {
       referer: req.headers.referer
   });
-
 });
 
 const requireVerifiedEmail = (req, res, next) => {
@@ -37,17 +69,38 @@ const requireVerifiedEmail = (req, res, next) => {
   next();
 };
 
-router.post('/bug-report', requireVerifiedEmail, upload.single('screenshot'), async (req, res) => {
+router.post('/bug-report', requireVerifiedEmail, bugReportLimiter, upload.single('screenshot'), async (req, res) => {
   try {
     const user = await User.findById(req.session.userId);
     if (!user) return res.redirect('/');
 
+    // Sanitize and validate input
+    let description = req.body.description || '';
+    description = validator.escape(description.trim());
+    if (description.length < 10 || description.length > 2000) {
+      return res.status(400).render('error', { error: 'Description must be between 10 and 2000 characters.' });
+    }
+    let pageUrl = req.body.pageUrl || '';
+    pageUrl = validator.trim(pageUrl);
+    if (pageUrl && (!validator.isURL(pageUrl, { require_protocol: false, require_host: false }) || pageUrl.length > 300)) {
+      return res.status(400).render('error', { error: 'Invalid page URL.' });
+    }
+
+    let screenshotFilename;
+    if (req.file) {
+      // Double-check file type
+      if (!allowedTypes.includes(req.file.mimetype)) {
+        return res.status(400).render('error', { error: 'Invalid file type.' });
+      }
+      screenshotFilename = req.file.filename;
+    }
+
     const report = new BugReport({
       userId: user._id,
       email: user.email,
-      description: req.body.description,
-      pageUrl: req.body.pageUrl,
-      screenshot: req.file ? req.file.filename : undefined
+      description,
+      pageUrl,
+      screenshot: screenshotFilename
     });
 
     await report.save();

@@ -22,8 +22,17 @@ const LeaseTermSchema = z.object({
 export async function lookup(req, res) {
   try {
     const { query } = req.query;
+    // Input validation: enforce max length and allowed characters
     if (!query || query.length < 3) {
       return res.json([]); // Minimum 3 characters required
+    }
+    if (query.length > 100) {
+      return res.status(400).json({ error: 'Query too long' });
+    }
+    // Allow only letters, numbers, space, comma, period, hyphen, apostrophe, and forward slash
+    const allowedPattern = /^[A-Za-z0-9 ,.'\/-]*$/;
+    if (!allowedPattern.test(query)) {
+      return res.status(400).json({ error: 'Query contains invalid characters.' });
     }
 
     const user = await User.findById(req.session.userId);

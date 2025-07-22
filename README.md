@@ -96,6 +96,12 @@ During the process, the tenure key is removed (redundant) and postcode extraacte
 
 All keys are shortened to abbreviations of 4 charecters or fewer (this saves a lot of storage space in the database!). The data model handles the re-mapping for the ejs rendering.
 
+**Note:** No derived information (such as lease length or parsed dates) is generated or stored at the time of import. This is intentional for two reasons:
+- Calculating derived values (like lease length) for every record at import would be time-consuming and resource-intensive.
+- Most importantly, keeping the database as close to the raw, authoritative Land Registry data as possible ensures that users always see the official record. No data cleaning or transformation is performed during import, except for extracting the postcode for search purposes. This avoids the risk of presenting users with data that differs from the official source, which could be critical for users who are investigating issues with their lease.
+
+Any derived or calculated information (such as lease length) is shown separately in the user interface, clearly distinguished from the source data. This helps ensure users do not confuse derived values with the original data provided by the Land Registry.
+
 ### 3. Start the Application (to create collections)
 - Run the application once to allow it to connect to your MongoDB instance and create the necessary collections:
 
@@ -212,6 +218,24 @@ You can run the update script in two modes:
 
 The script will prompt you for confirmation in ambiguous cases and provide a summary of additions, deletions, and manual actions required. Always review the dry-run output before proceeding with the actual update.
 
+### How the update script works
+
+The `apply-update.js` script processes a change file in two main phases:
+
+1. **Deletions (Removals)**
+   - The script first processes all records marked for deletion.
+   - For each deletion, it attempts to match the record in the database using a combination of unique identifier and key fields (such as registration order and associated property ID).
+   - If there is a single, clear match, the record is deleted automatically.
+   - If there are multiple possible matches, the script compares all fields and, if the difference is minimal (e.g., a single character), it will proceed with deletion.
+   - For ambiguous cases where the match is not clear, the script prompts the user to decide whether to keep, delete, or skip the record. This ensures that no data is lost due to uncertain matches.
+
+2. **Additions (Inserts)**
+   - After deletions, the script processes all records marked for addition.
+   - New records are inserted in bulk for efficiency.
+   - The script also updates the version tracking for each unique lease that is added or deleted.
+
+At the end of the process, a summary is displayed showing the number of additions, deletions, and manual interventions required. The script can be run in a dry-run mode (default) to preview changes, or in apply mode (`--apply`) to actually modify the database.
+
 ---
 
 ## Style, theme and cookies
@@ -245,6 +269,8 @@ For more complex or ambiguous cases that do not match these patterns, the AI mod
 To optimize performance and avoid redundant AI calls, the results of AI-based parsing are cached in the `LeaseTermCache` collection (see `models/LeaseTermCache.js`). This ensures that once a lease term string has been processed, its parsed results are reused for future queries.
 
 The model used for each extraction is also logged in the cache. This allows you to evaluate which model derived which results, making it possible to compare and benchmark different models. However, there is no built-in feature to invalidate or remove old cache entries if you change the model. If you wish to clear out cached results from previous models, you will need to do so manually.
+
+**Warning:** The lease length and remaining term shown in the tool are derived either by regular expression matching or by AI-based parsing of the original lease term string. These methods can sometimes produce incorrect results, especially for ambiguous or complex term descriptions. Users should always check the original lease term string (which is displayed alongside any derived values) and, if in doubt, seek clarification from the official source or a qualified professional. The derived values are provided for convenience only and should not be solely relied upon for legal or financial decisions.
 
 * Set your `OPENAI_API_KEY` in `.env` to enable this feature.
 

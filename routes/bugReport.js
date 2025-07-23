@@ -1,6 +1,6 @@
 import express from 'express';
 import multer from 'multer';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import validator from 'validator';
 import path from 'path';
 import fs from 'fs';
@@ -23,12 +23,13 @@ const storage = multer.diskStorage({
   }
 });
 
-// Rate limiting: configurable via config.bugReportRateLimitPerDay
 const bugReportLimiter = rateLimit({
   windowMs: 24 * 60 * 60 * 1000, // 24 hours
-  max: config.bugReportRateLimitPerDay || 5, // Default 5 per day
+  max: config.bugReportRateLimitPerDay || 5,
   message: 'You have reached the daily bug report submission limit.',
-  keyGenerator: (req) => req.session.userId || req.ip
+  keyGenerator: (req) => {
+    return req.session.userId || ipKeyGenerator(req);
+  }
 });
 
 // Multer: file type and size limits
@@ -43,6 +44,11 @@ const upload = multer({
     cb(null, true);
   }
 });
+
+const requireVerifiedEmail = (req, res, next) => {
+  if (!req.session.userId) return res.redirect('/');
+  next();
+};
 
 // Serve uploaded screenshots with strict headers
 router.get('/uploads/screenshots/:filename', requireVerifiedEmail, (req, res) => {
@@ -63,11 +69,6 @@ router.get('/bug-report', requireVerifiedEmail, bugReportLimiter, (req, res) => 
       referer: req.headers.referer
   });
 });
-
-const requireVerifiedEmail = (req, res, next) => {
-  if (!req.session.userId) return res.redirect('/');
-  next();
-};
 
 router.post('/bug-report', requireVerifiedEmail, bugReportLimiter, upload.single('screenshot'), async (req, res) => {
   try {

@@ -60,35 +60,28 @@ const fieldDescriptions = {
         <!-- </div> -->
         <!-- Lease Details: order-1 on md+, order-2 on mobile -->
         <!-- <div class="col-12 col-md-7 order-2 order-md-1"> -->
-          <% if (multipleLeases) { %>
             <h4>Properties associated with this lease</h4>
             <div class="info mb-3">
-              This lease covers <%= leases.length %> properties. Click a row below to view details for each associated property.
+              <% if (multipleLeases) { %>
+                This lease covers <%= leases.length %> properties. Click a row below to view details for each associated property.
+              <% } else { %>
+                This lease covers <%= leases.length %> property. Click the associated property address to view the raw data.
+              <% } %>
             </div>
             <div class="accordion" id="leaseAccordion">
-          <% } %>
-
               <% leases.slice().reverse().forEach((lease, idx) => { %>
                   <% const leaseId = lease._id || idx; %>
                   <% const isLatest = !multipleLeases && idx === 0; %>
-                  <% if (multipleLeases) { %>
                     <div class="accordion-item"
                         data-lease-id="<%= leaseId %>"
                         data-reg-order="<%= lease['Reg Order'] || 0 %>">
                         <h2 class="accordion-header" id="heading-<%= leaseId %>">
-                            <button class="accordion-button<%= isLatest ? '' : ' collapsed' %>" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-<%= leaseId %>" aria-expanded="<%= isLatest ? 'true' : 'false' %>" aria-controls="collapse-<%= leaseId %>">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-<%= leaseId %>" aria-expanded="false" aria-controls="collapse-<%= leaseId %>">
                                 <%= lease['Associated Property Description'] %>
                             </button>
                         </h2>
-                        <div id="collapse-<%= leaseId %>" class="accordion-collapse collapse<%= isLatest ? ' show' : '' %>" aria-labelledby="heading-<%= leaseId %>" data-bs-parent="#leaseAccordion">
+                        <div id="collapse-<%= leaseId %>" class="accordion-collapse collapse" aria-labelledby="heading-<%= leaseId %>" data-bs-parent="#leaseAccordion">
                             <div class="accordion-body">
-                  <% } else { %>
-
-                    <div class="lease"
-                        data-lease-id="<%= leaseId %>"
-                        data-reg-order="<%= lease['Reg Order'] || 0 %>">
-                  <% } %>
-
                               <!-- 🔹 Source Data Table -->
                                <h5 class="mt-3">Land Registry Source Data</h5>
                                <p class="text-muted">
@@ -117,7 +110,7 @@ const fieldDescriptions = {
                                               <span class="visually-hidden"> – <%= fieldDescriptions[key] %></span>
                                             </span>
                                           <% } else { %>
-                                            <%= key %>
+                                            <%= key %><% if (key == 'Postcode') { %>*<% } %>
                                           <% } %>
                                         </th>
                                         <td class="wrap-text">
@@ -132,7 +125,10 @@ const fieldDescriptions = {
                                   <% }); %>
                                 </tbody>
                               </table>
-
+                              <small>
+                                <p><i>Information produced by HM Land Registry © Crown copyright and database rights <%= new Date().getFullYear() %>.</i><br/>
+                                <i>* Postcode extracted from HM Land Registry source data</i></p>
+                              </small>
                               <!-- 🔸 Derived Data Table -->
                               <h5 class="mt-4">Derived Lease Information</h5>
                               <table class="table table-bordered">
@@ -158,21 +154,19 @@ const fieldDescriptions = {
                                   </tr>
                               </tbody>
                               </table>
-                              <% if (multipleLeases) { %>
                           </div>
                       </div>
                   </div>
-                <% } %>
               <% }); %>
           </div>
         <!-- </div> -->
       <!-- </div> -->
       <!-- 🛈 Guidance CTA for possible issues -->
-       <div class="mt-4 mb-4">
+       <div class="mt-4 mb-4" style="text-align: center;">
+            Think this lease is incorrect?
             <a href="/lease-guidance?<%= uniqueId ? `uid=${encodeURIComponent(uniqueId)}` : '' %>"
-              class="btn btn-primary w-100" role="button" aria-label="Guidance if you think the lease is incorrect">
-              <i class="bi bi-info-circle me-2" aria-hidden="true"></i>
-              Think this lease is incorrect? Read your options
+              aria-label="Guidance if you think the lease is incorrect">
+               Read your options
             </a>
           </div>
       <div class="d-flex justify-content-between align-items-center mt-3">
@@ -312,11 +306,11 @@ const fieldDescriptions = {
         if (yearsLeft > 90) {
           html = `
             <div class="lease-advice">
-              <p>There are <strong>${remainingText}</strong> remaining on the lease for <strong>${address}</strong> as of <strong>${formattedDate}</strong>.</p>
-              <p><span class="emblem-green">🟢 No immediate action required</span></p>
+              <p class="lease-remaining">There are <strong>${remainingText}</strong>* remaining on the lease for <strong>${address}</strong> as of <strong>${formattedDate}</strong>.</p>
+              <p class="lease-advice-warning"><span class="emblem-green"><strong>🟢 No immediate action required</strong></span></p>
               <p>Your lease term is over 90 years, so there is no immediate need to extend your lease.</p>
               <p>When your lease falls below 90 years, you may want to start thinking about the process to extend your lease.</p>
-              <p>For more information on the implications of shorter leases and lease extensions, see:</p>
+              <p>For more information on the implications of shorter leases and lease extensions, see the information provided below:</p>
               <ul>
                 <li>
                   <a href="https://www.lease-advice.org/fact-sheet/lease-extension-flats/" target="_blank" rel="noopener noreferrer">
@@ -331,28 +325,29 @@ const fieldDescriptions = {
                   </a>
                 </li>
               </ul>
-              <p>The government has announced major leasehold reforms.
+              <p>The government has announced major leasehold reforms, these will change how much it costs to extend a lease, so if you are considering extending your lease you should understand the impact of the reforms first. Find out about the latest
                 <em>
                   <a href="https://www.lease-advice.org/news-items/" target="_blank" rel="noopener noreferrer">
-                    Find out about the latest leasehold news <span class="visually-hidden">(opens in a new tab)</span>
+                    leasehold news <span class="visually-hidden">(opens in a new tab)</span>
                     <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
                   </a>
                 </em>
               </p>
+              <p>* <i>The remaining length of the lease shown here is an estimate derived from text in the HM Land Registry dataset under 'Term'. This automated calculation may not be correct for all leases. You should always check the original 'Term' text provided in the raw data from HMLR (included below) and consult a qualified professional before making any legal or financial decisions.</i></p>
             </div>
           `;
         } else if (yearsLeft >= 80) {
           html = `
             <div class="lease-advice">
-              <p>There are <strong>${remainingText}</strong> remaining on the lease for <strong>${address}</strong> as of <strong>${formattedDate}</strong>.</p>
-              <p><span class="emblem-orange">🟠 You may want to consider extending your lease</span></p>
-              <p>Your lease has between 80 and 89 years remaining. As a lease approaches 80 years, mortgages can become more expensive, and it can be more challenging to re-mortgage or to sell.</p>
+              <p class="lease-remaining">There are <strong>${remainingText}</strong>* remaining on the lease for <strong>${address}</strong> as of <strong>${formattedDate}</strong>.</p>
+              <p class="lease-advice-warning"><span class="emblem-orange"><strong>🟠 You may want to consider extending your lease</strong></span></p>
+              <p>Your lease has between 80 and 89 years remaining. Over time, your lease will become shorter. As a lease approaches 80 years, mortgages can become more expensive, and it can be more challenging to re-mortgage or to sell your property. Mortgage lenders’ approach to leases in this range will vary from provider to provider.</p>
               <p>Extending a lease with less than 80 years may be more expensive due to 'marriage value'.</p>
-              <p>We recommend considering an extension before the lease drops below 81 years.</p>
-              <p>The government has announced major leasehold reforms.
+              <p>Extending a lease with less than 80 years may be more expensive because there is an extra cost known as ‘marriage value’ added to the extension cost. Therefore, it is important to keep the lease length above 80 years. <strong>We recommend that you consider extending your lease before it reaches 81 years, to prevent the lease going below 80 years.</strong></p>
+              <p>Keep in mind, the government has announced major leasehold reforms. These will change how much it costs to extend a lease, so if you are considering extending your lease you should understand the impact of the reforms first. Find out about the latest
                 <em>
                   <a href="https://www.lease-advice.org/news-items/" target="_blank" rel="noopener noreferrer">
-                    Find out about the latest leasehold news <span class="visually-hidden">(opens in a new tab)</span>
+                    leasehold news <span class="visually-hidden">(opens in a new tab)</span>
                     <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
                   </a>
                 </em>
@@ -393,30 +388,32 @@ const fieldDescriptions = {
                   </a>
                 </li>
               </ul>
+              <p>* <i>The remaining length of the lease shown here is an estimate derived from text in the HM Land Registry dataset under 'Term'. This automated calculation may not be correct for all leases. You should always check the original 'Term' text provided in the raw data from HMLR (included below) and consult a qualified professional before making any legal or financial decisions.</i></p>
             </div>
           `;
         } else {
           html = `<div class="lease-advice">`;
           if (yearsLeft < 0) {
             html += `
-                <p>The lease for <strong>${address}</strong> has expired.</p>
+                <p class="lease-remaining">The lease for <strong>${address}</strong> has expired*.</p>
             `;
           } else {
-            html += `<p>There are <strong>${remainingText}</strong> remaining on the lease for <strong>${address}</strong> as of <strong>${formattedDate}</strong>.</p>`;
+            html += `<p class="lease-remaining>There are <strong>${remainingText}</strong>* remaining on the lease for <strong>${address}</strong> as of <strong>${formattedDate}</strong>.</p>`;
           }
-          html += `<p><span class="emblem-red">🔴 Seek urgent advice regarding extending your lease</span></p>
-              <p>Your lease has less than 80 years left. Extending a lease with less than 80 years is more expensive due to ‘marriage value’.</p>
+          html += `<p class="lease-advice-warning"><span class="emblem-red"><strong>🔴 Seek urgent advice regarding extending your lease</strong></span></p>
+              <p>Your lease has less than 80 years left. Extending a lease with less than 80 years is more expensive because there is an extra cost known as ‘marriage value’ added to the extension cost. This increases as the lease gets shorter, so it is important to act as soon as you can.</p>
               <p><strong>What is marriage value?</strong><br>
-              It’s the increase in value after a lease extension — payable if the lease has under 80 years.</p>
+              Marriage value is the increase in the value of the property after extending the lease. In the UK, marriage value is payable when extending a lease if the term is below 80 years. This means leaseholders with shorter leases will need to factor in this extra cost when planning a lease extension.</p>
               <p><strong>Mortgages and property sale:</strong><br>
-              Mortgages can become more expensive. Selling or re-mortgaging may be difficult with a short lease.</p>
-              <p>If your lease has already expired, you can find out more about your
+              When a lease falls below 80 years, mortgages can become more expensive. It can be challenging to re-mortgage, or hard to sell your property if your lease is very short.</p>
+              <p><strong>Lease expiry:</strong><br>
+              If your lease has already expired, you can find out more about your
                 <a href="https://www.lease-advice.org/advice-guide/security-tenure/" target="_blank" rel="noopener noreferrer">
                     rights <span class="visually-hidden">(opens in a new tab)</span>
                     <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
                   </a>.
               </p>
-              <p>Find out more below:</p>
+              <p>Find out more about lease extension below:</p>
               <ul>
                  <li>
                   <a href="https://www.lease-advice.org/fact-sheet/lease-extension-flats/" target="_blank" rel="noopener noreferrer">
@@ -452,14 +449,15 @@ const fieldDescriptions = {
                   </a>
                 </li>
               </ul>
-              <p>Keep in mind that the government has announced major leasehold reforms.
+              <p>Keep in mind that the government has announced major leasehold reforms. Find out about the latest
                 <em>
                   <a href="https://www.lease-advice.org/news-items/" target="_blank" rel="noopener noreferrer">
-                    Find out about the latest leasehold news <span class="visually-hidden">(opens in a new tab)</span>
+                    leasehold news <span class="visually-hidden">(opens in a new tab)</span>
                     <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
                   </a>
                 </em>
               </p>
+              <p>* <i>The remaining length of the lease shown here is an estimate derived from text in the HM Land Registry dataset under 'Term'. This automated calculation may not be correct for all leases. You should always check the original 'Term' text provided in the raw data from HMLR (included below) and consult a qualified professional before making any legal or financial decisions.</i></p>
             </div>
           `;
         }

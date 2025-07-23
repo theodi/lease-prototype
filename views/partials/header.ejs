@@ -94,6 +94,55 @@
       margin-top: 48px;
     }
 
+    .mobile-header-icon {
+      background: #fff;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .hamburger-lines,
+    .hamburger-lines::before,
+    .hamburger-lines::after {
+      content: '';
+      display: block;
+      background-color: #003c71;
+      height: 3px;
+      width: 20px;
+      border-radius: 2px;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .hamburger-lines::before {
+      position: absolute;
+      top: -7px;
+    }
+
+    .hamburger-lines::after {
+      position: absolute;
+      top: 7px;
+    }
+
+    /* Open state */
+    .icon-close .hamburger-lines {
+      background-color: transparent;
+    }
+
+    .icon-close .hamburger-lines::before {
+      transform: rotate(45deg);
+      top: 0;
+    }
+
+    .icon-close .hamburger-lines::after {
+      transform: rotate(-45deg);
+      top: 0;
+    }
+
     @media (min-width: 992px) {
         .navbar-expand-lg .navbar-collapse {
             margin-top: 36px !important;
@@ -117,15 +166,17 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
   <div class="container-fluid">
     <!-- Logo -->
-    <a class="navbar-brand" href="/">
+    <a class="navbar-brand" href="//lease-advice.org">
       <img src="https://www.lease-advice.org/wp-content/themes/las/assets/images/LEASE_Logo_RGB_Strapline_OnDark.png" alt="LEASE Logo" style="width: 219px;">
       <span class="visually-hidden">The Leasehold Advisory Service</span>
     </a>
 
     <!-- Mobile toggle -->
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#leaseNavbar" aria-controls="leaseNavbar" aria-expanded="false" aria-label="Toggle navigation">
-      <span class="navbar-toggler-icon"></span>
-    </button>
+    <div class="mobile-header-icon d-lg-none" id="menuToggle" aria-label="Toggle navigation" role="button" tabindex="0">
+      <div id="menuIcon" class="hamburger-lines"></div>
+    </div>
+
+
 
     <!-- Navbar content -->
     <div class="collapse navbar-collapse flex-column align-items-start" id="leaseNavbar">
@@ -246,3 +297,20 @@
     </div>
   </div>
 </nav>
+<script>
+  const menuToggle = document.getElementById('menuToggle');
+  const navCollapse = document.getElementById('leaseNavbar');
+
+  menuToggle.addEventListener('click', () => {
+    menuToggle.classList.toggle('icon-close');
+    navCollapse.classList.toggle('show');
+  });
+
+  menuToggle.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      menuToggle.click();
+    }
+  });
+</script>
+

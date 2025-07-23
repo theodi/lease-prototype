@@ -50,11 +50,11 @@ export async function sendVerificationCode(req, res) {
 
     if (!config.isDevelopment) {
       const mailOptions = {
-        from: `"Lease Finder Tool" <${config.email.user}>`,
+        from: `"Check your lease length" <${config.email.user}>`,
         to: email,
-        subject: 'Your Verification Code',
+        subject: 'Your verification code',
         html: `
-          <h1>Email Verification</h1>
+          <h1>Email verification</h1>
           <p>Your verification code is: <strong>${code}</strong></p>
           <p>This code will expire in 15 minutes.</p>
           <p>Enter this code on the verification page to continue.</p>

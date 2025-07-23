@@ -7,23 +7,6 @@
     <link href="/lib/bootstrap.min.css" rel="stylesheet">
     <link href="/lib/bootstrap-icons.min.css" rel="stylesheet">
     <link href="/style.css" rel="stylesheet">
-    <style>
-        body {
-            background-color: white;
-            font-family: Arial,sans-serif !important;
-        }
-        .container {
-            max-width: 1280px;
-        }
-        .card {
-            border: none;
-        }
-        .card-body .text-muted a,
-        footer.text-muted a  {
-            color: #003C71 !important;
-        }
-
-    </style>
     <%- include('partials/cookie-control') %>
 </head>
 <body>
@@ -34,7 +17,7 @@
             <%- body %>
         </main>
     </div>
-    <footer class="text-center mt-2 small text-muted">
+    <footer class="text-center mt-2 small text-muted bug-report-footer">
         <p><a href="/bug-report" class="text-decoration-none">Report a problem with this tool</a></p>
     </footer>
     <%- include('partials/footer') %>

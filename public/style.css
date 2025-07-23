@@ -19,6 +19,34 @@
   --bs-btn-disabled-bg: #003C71;
   --bs-btn-disabled-border-color: #003C71;
 }
+body {
+    background-color: white;
+    font-family: Arial,sans-serif !important;
+}
+.container {
+    max-width: 1140px;
+}
+.container-narrow {
+    max-width: 600px;
+}
+.centered {
+    margin-left: auto;
+    margin-right: auto;
+}
+.card {
+    border: none;
+}
+.card-body .text-muted a,
+footer.text-muted a  {
+    color: #003C71 !important;
+}
+.lease-remaining {
+  font-size: 1.3em;
+}
+.lease-advice-warning {
+  font-size: 1.3em;
+}
+
 .alert-info {
   background-color: inherit !important;
   border-color: #002140 !important;

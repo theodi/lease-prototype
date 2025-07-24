@@ -66,7 +66,7 @@ export async function sendVerificationCode(req, res) {
 
     if (!config.isDevelopment) {
       const mailOptions = {
-        from: `"Check your lease length" <${config.email.user}>`,
+        from: `"Check your lease length" <${config.email.from}>`,
         to: email,
         subject: 'Your verification code',
         html: `

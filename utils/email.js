@@ -76,7 +76,7 @@ export async function sendBookmarkUpdateEmail(user, updatedLeases, latestVersion
 
 
   const mailOptions = {
-    from: `"Lease Finder Tool" <${config.email.user}>`,
+    from: `"Lease Finder Tool" <${config.email.from}>`,
     to: user.email,
     subject: `🔔 Lease Updates in ${latestVersion}`,
     html
@@ -115,7 +115,7 @@ The Lease Finder Team
 `;
 
   const mailOptions = {
-    from: `"Lease Finder Tool" <${config.email.user}>`,
+    from: `"Lease Finder Tool" <${config.email.from}>`,
     to: user.email,
     subject: 'Your Subject Access Request (SAR) Data',
     text: explanation,

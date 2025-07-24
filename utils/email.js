@@ -2,13 +2,29 @@ import nodemailer from 'nodemailer';
 import config from '../config/index.js';
 import Lease from '../models/Lease.js';
 
-export const transporter = nodemailer.createTransport({
-  service: config.email.service,
-  auth: {
-    user: config.email.user,
-    pass: config.email.pass
+function createTransporter() {
+  const { host, port, user, pass } = config.email;
+
+  const baseOptions = {
+    host,
+    port,
+    secure: port === 465, // only use true for SSL (usually port 465)
+    tls: {
+      rejectUnauthorized: false // optional, for relaxed certs
+    }
+  };
+
+  if (user && pass) {
+    baseOptions.auth = {
+      user,
+      pass
+    };
   }
-});
+
+  return nodemailer.createTransport(baseOptions);
+}
+
+export const transporter = createTransporter();
 
 export async function sendBookmarkUpdateEmail(user, updatedLeases, latestVersion) {
   if (!user.email || updatedLeases.length === 0) return;

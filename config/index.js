@@ -14,7 +14,10 @@ const config = {
     model: process.env.OPENAI_MODEL || 'gpt-4.1-mini'
   },
   email: {
-    service: process.env.EMAIL_SERVICE,
+    method: process.env.EMAIL_METHOD || 'smtp',
+    host: process.env.EMAIL_HOST,
+    port: parseInt(process.env.EMAIL_PORT) || 25,
+    from: process.env.EMAIL_FROM,
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
   },

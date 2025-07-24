@@ -13,11 +13,12 @@
     <%- include('partials/header') %>
     <a href="#main-content" class="visually-hidden-focusable">Skip to main content</a>
     <div class="container">
+        <%- include('partials/banner') %>
         <main id="main-content" role="main" aria-label="Main content">
             <%- body %>
         </main>
     </div>
-    <footer class="text-center mt-2 small text-muted bug-report-footer">
+    <footer class="text-center mt-2 small text-muted home-hidden">
         <p><a href="/bug-report" class="text-decoration-none">Report a problem with this tool</a></p>
     </footer>
     <%- include('partials/footer') %>

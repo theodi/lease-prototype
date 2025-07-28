@@ -45,7 +45,7 @@ export async function lookup(req, res) {
       return res.status(403).json({ error: 'You have reached your daily search limit.' });
     }
 
-    const postcodeRegex = /\b([A-Z]{1,2}\d{1,2}[A-Z]?)\s?(\d[A-Z]{2})?\b/i;
+    const postcodeRegex = /\b([A-Z]{1,2}\d{1,2}[A-Z]?)\s*(\d[A-Z]{2})?\b/i;
     const match = query.match(postcodeRegex);
     let results = [];
 

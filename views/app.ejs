@@ -132,14 +132,24 @@ const resultsDiv = document.getElementById('results');
 
 // Filter and render results client-side when we already matched a full postcode
 function filterAndRenderResults(query) {
-    const postcodeMatch = query.match(/\b([A-Z]{1,2}\d{1,2}[A-Z]?)\s?(\d[A-Z]{2})\b/i);
-    const fullPostcode = postcodeMatch ? `${postcodeMatch[1].toUpperCase()} ${postcodeMatch[2].toUpperCase()}` : '';
-    const filterText = query.replace(fullPostcode, '').trim().toLowerCase();
+    // Match postcode with any number of spaces in the middle
+    const postcodeMatch = query.match(/\b([A-Z]{1,2}\d{1,2}[A-Z]?)\s*(\d[A-Z]{2})\b/i);
+
+    // If matched, reformat with exactly one space
+    let fullPostcode = '';
+    if (postcodeMatch) {
+        fullPostcode = `${postcodeMatch[1].toUpperCase()} ${postcodeMatch[2].toUpperCase()}`;
+    }
+
+    // Collapse all whitespace and normalise postcode in input query
+    const normalisedQuery = query.replace(/\s+/g, ' ').trim();
+
+    // Remove the postcode from the query to get the filter text
+    const filterText = normalisedQuery.replace(new RegExp(fullPostcode, 'i'), '').trim().toLowerCase();
 
     const filtered = cachedResults.filter(r => {
         if (!filterText) return true;
 
-        // Strip postcode from fields before comparing
         const stripPostcode = str =>
             (str || '').toLowerCase().replace(fullPostcode.toLowerCase(), '').trim();
 
@@ -154,6 +164,14 @@ function filterAndRenderResults(query) {
 
 function renderResults(results) {
     if (results && results.length > 0) {
+        // Sort by Register Property Description (case-insensitive)
+        results.sort((a, b) => {
+            const addressA = (a['Register Property Description'] || '').toLowerCase();
+            const addressB = (b['Register Property Description'] || '').toLowerCase();
+            return addressA.localeCompare(addressB, undefined, { numeric: true, sensitivity: 'base' });
+        });
+
+
         resultsDiv.classList.remove('d-none');
         resultsDiv.innerHTML = `
             <h5 id="results-heading">Matching Addresses</h5>
@@ -188,7 +206,7 @@ addressInput.addEventListener('input', function() {
     }
 
     // Detect if we're still filtering the same postcode-based results
-    const postcodeMatch = query.match(/\b([A-Z]{1,2}\d{1,2}[A-Z]?)\s?(\d[A-Z]{2})\b/i);
+    const postcodeMatch = query.match(/\b([A-Z]{1,2}\d{1,2}[A-Z]?)\s*(\d[A-Z]{2})\b/i);
     const fullPostcode = postcodeMatch ? `${postcodeMatch[1].toUpperCase()} ${postcodeMatch[2].toUpperCase()}` : '';
 
     if (cachedResults.length > 0 && fullPostcode && fullPostcode === currentPostcode) {

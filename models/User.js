@@ -109,8 +109,9 @@ userSchema.methods.addLogin = async function (ip) {
   }
 
   // Update user's last login time and IP
-  this.lastLoginAt = now;
-  this.lastLoginIp = ip;
+  this.lastLogin = now;
+  this.loginCount += 1;
+  this.loginHistory.push({ ipAddress: ip });
   await this.save();
 };
 

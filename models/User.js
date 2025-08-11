@@ -82,7 +82,6 @@ userSchema.methods.addLogin = async function (ipAddress) {
 
 userSchema.methods.addLogin = async function (ip) {
   const now = new Date();
-  const userId = this._id;;
 
   const formatDate = (date) => date.toISOString().split('T')[0]; // 'YYYY-MM-DD'
   const formatMonth = (date) => date.toISOString().slice(0, 7);   // 'YYYY-MM'

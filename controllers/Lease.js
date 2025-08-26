@@ -20,6 +20,14 @@ const LeaseTermSchema = z.object({
 // 🔍 Lease Search
 // ─────────────────────────────────────────────
 export async function lookup(req, res) {
+  // Create an AbortController for this request
+  const abortController = new AbortController();
+  
+  // Set up request cleanup on client disconnect
+  req.on('close', () => {
+    abortController.abort();
+  });
+
   try {
     const { query } = req.query;
     // Input validation: enforce max length and allowed characters
@@ -55,8 +63,15 @@ export async function lookup(req, res) {
 
       if (inward) {
         // ✅ Full postcode match — return all results with this postcode
+        //console.log('Full postcode match');
         SearchAnalytics.incrementSearchType('full_postcode');
         const fullPostcode = `${outward} ${inward}`;
+        
+        // Check if request was aborted before database query
+        if (abortController.signal.aborted) {
+          return res.status(499).json({ error: 'Request cancelled' });
+        }
+        
         results = await Lease.aggregate([
           { $match: { pc: fullPostcode } },
           {
@@ -75,10 +90,17 @@ export async function lookup(req, res) {
               pc: 1
             }
           }
-        ]);
+        ], { signal: abortController.signal });
       } else {
+        //console.log('Outer postcode only');
         // 🟡 Outer postcode only — limit results to 5
         SearchAnalytics.incrementSearchType('outer_postcode');
+        
+        // Check if request was aborted before database query
+        if (abortController.signal.aborted) {
+          return res.status(499).json({ error: 'Request cancelled' });
+        }
+        
         results = await Lease.aggregate([
           { $match: { pc: { $regex: `^${outward}`, $options: 'i' } } },
           { $limit: 20 },
@@ -91,11 +113,18 @@ export async function lookup(req, res) {
               pc: 1
             }
           }
-        ]);
+        ], { signal: abortController.signal });
       }
     } else {
+      //console.log('Autocomplete search');
       SearchAnalytics.incrementSearchType('autocomplete');
       // 🔍 Autocomplete search — check results before falling back
+      
+      // Check if request was aborted before database query
+      if (abortController.signal.aborted) {
+        return res.status(499).json({ error: 'Request cancelled' });
+      }
+      
       const autoResults = await Lease.aggregate([
         {
           $search: {
@@ -116,7 +145,7 @@ export async function lookup(req, res) {
             pc: 1
           }
         }
-      ]);
+      ], { signal: abortController.signal });
 
       const containsQuery = autoResults.some(r =>
         (r.rpd || '').toLowerCase().includes(query.toLowerCase()) ||
@@ -128,6 +157,13 @@ export async function lookup(req, res) {
       } else {
         // 🔁 Fallback to default index search
         SearchAnalytics.incrementSearchType('fallback');
+        //console.log('Fallback to default index search');
+        
+        // Check if request was aborted before fallback query
+        if (abortController.signal.aborted) {
+          return res.status(499).json({ error: 'Request cancelled' });
+        }
+        
         results = await Lease.aggregate([
           {
             $search: {
@@ -148,12 +184,23 @@ export async function lookup(req, res) {
               pc: 1
             }
           }
-        ]);
+        ], { signal: abortController.signal });
       }
+    }
+
+    // Final check before sending response
+    if (abortController.signal.aborted) {
+      return res.status(499).json({ error: 'Request cancelled' });
     }
 
     res.json(results.map(mapLeaseToVirtual));
   } catch (error) {
+    // Handle aborted requests gracefully
+    if (error.name === 'AbortError' || abortController.signal.aborted) {
+      //console.log('Lease lookup request was cancelled');
+      return res.status(499).json({ error: 'Request cancelled' });
+    }
+    
     console.error('Lease lookup error:', error);
     res.status(500).json({ error: 'Failed to lookup lease' });
   }

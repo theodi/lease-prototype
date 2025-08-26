@@ -64,6 +64,13 @@
         <div id="results" class="mt-4 d-none" aria-live="polite" aria-atomic="true">
             <!-- Results will be displayed here -->
         </div>
+        
+        <div id="searching" class="mt-4 d-none" aria-live="polite" aria-atomic="true">
+            <div class="d-flex align-items-center justify-content-center">
+                <div class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></div>
+                <span>Searching...</span>
+            </div>
+        </div>
 
         <% if (bookmarkedLeases && bookmarkedLeases.length > 0) { %>
             <div class="mt-4">
@@ -115,6 +122,13 @@ document.addEventListener('DOMContentLoaded', function () {
     if (input) input.focus();
 });
 
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    if (currentAbortController) {
+        currentAbortController.abort();
+    }
+});
+
 document.getElementById('address').addEventListener('input', function(e) {
     this.value = this.value.toUpperCase().replace(/[^A-Z0-9 ]/g, '');
 });
@@ -127,13 +141,25 @@ function lookupPostcode(postcode) {
 let debounceTimeout;
 let cachedResults = [];
 let currentPostcode = '';
+let currentAbortController = null; // Track the current request
 const addressInput = document.getElementById('address');
 const resultsDiv = document.getElementById('results');
+const searchingDiv = document.getElementById('searching');
+
+// Show/hide searching status
+function showSearching() {
+    searchingDiv.classList.remove('d-none');
+    resultsDiv.classList.add('d-none');
+}
+
+function hideSearching() {
+    searchingDiv.classList.add('d-none');
+}
 
 // Filter and render results client-side when we already matched a full postcode
 function filterAndRenderResults(query) {
     // Match postcode with any number of spaces in the middle
-    const postcodeMatch = query.match(/\b([A-Z]{1,2}\d{1,2}[A-Z]?)\s*(\d[A-Z]{2})\b/i);
+    const postcodeMatch = query.match(/([A-Z]{1,2}\d{1,2}[A-Z]?)\s*(\d[A-Z]{2})/i);
 
     // If matched, reformat with exactly one space
     let fullPostcode = '';
@@ -145,13 +171,35 @@ function filterAndRenderResults(query) {
     const normalisedQuery = query.replace(/\s+/g, ' ').trim();
 
     // Remove the postcode from the query to get the filter text
-    const filterText = normalisedQuery.replace(new RegExp(fullPostcode, 'i'), '').trim().toLowerCase();
+    // Handle both spaced and non-spaced versions of the postcode
+    let filterText = normalisedQuery;
+    if (fullPostcode) {
+        // Try to remove the spaced version first
+        filterText = filterText.replace(new RegExp(fullPostcode, 'i'), '');
+        // If that didn't work, try the non-spaced version
+        if (filterText === normalisedQuery) {
+            const nonSpacedPostcode = fullPostcode.replace(' ', '');
+            filterText = filterText.replace(new RegExp(nonSpacedPostcode, 'i'), '');
+        }
+    }
+    filterText = filterText.trim().toLowerCase();
+
+    console.log('Filtering with postcode:', fullPostcode, 'filter text:', filterText, 'cached results:', cachedResults.length);
 
     const filtered = cachedResults.filter(r => {
         if (!filterText) return true;
 
-        const stripPostcode = str =>
-            (str || '').toLowerCase().replace(fullPostcode.toLowerCase(), '').trim();
+        // Strip both spaced and non-spaced versions of the postcode
+        const stripPostcode = str => {
+            let cleaned = (str || '').toLowerCase();
+            cleaned = cleaned.replace(fullPostcode.toLowerCase(), '');
+            if (cleaned === (str || '').toLowerCase()) {
+                // If spaced version didn't match, try non-spaced
+                const nonSpacedPostcode = fullPostcode.replace(' ', '');
+                cleaned = cleaned.replace(nonSpacedPostcode.toLowerCase(), '');
+            }
+            return cleaned.trim();
+        };
 
         const cleanedRegister = stripPostcode(r['Register Property Description']);
         const cleanedAssociated = stripPostcode(r['Associated Property Description']);
@@ -159,10 +207,13 @@ function filterAndRenderResults(query) {
         return cleanedRegister.includes(filterText) || cleanedAssociated.includes(filterText);
     });
 
+    console.log('Filtered results:', filtered.length);
     renderResults(filtered);
 }
 
 function renderResults(results) {
+    hideSearching(); // Hide searching status when showing results
+    
     if (results && results.length > 0) {
         // Sort by Register Property Description (case-insensitive)
         results.sort((a, b) => {
@@ -197,7 +248,15 @@ function renderResults(results) {
 addressInput.addEventListener('input', function() {
     clearTimeout(debounceTimeout);
     const query = this.value.trim();
+    
+    // Always cancel any existing request immediately when input changes
+    if (currentAbortController) {
+        currentAbortController.abort();
+        currentAbortController = null;
+    }
+    
     if (query.length < 3) {
+        hideSearching();
         resultsDiv.classList.add('d-none');
         resultsDiv.innerHTML = '';
         cachedResults = [];
@@ -206,29 +265,54 @@ addressInput.addEventListener('input', function() {
     }
 
     // Detect if we're still filtering the same postcode-based results
-    const postcodeMatch = query.match(/\b([A-Z]{1,2}\d{1,2}[A-Z]?)\s*(\d[A-Z]{2})\b/i);
+    // Improved regex to handle postcodes with or without spaces
+    const postcodeMatch = query.match(/([A-Z]{1,2}\d{1,2}[A-Z]?)\s*(\d[A-Z]{2})/i);
     const fullPostcode = postcodeMatch ? `${postcodeMatch[1].toUpperCase()} ${postcodeMatch[2].toUpperCase()}` : '';
 
+    // Debug logging
+    console.log('Query:', query, 'Full postcode:', fullPostcode, 'Current postcode:', currentPostcode, 'Cached results:', cachedResults.length);
+
+    // Check if we have cached results for this exact postcode
     if (cachedResults.length > 0 && fullPostcode && fullPostcode === currentPostcode) {
+        console.log('Using cached results for postcode filtering');
         // Just filter the cached results
         filterAndRenderResults(query);
         return;
     }
 
-    // Otherwise fetch fresh results
+    // Debounce the actual request but allow immediate cancellation
     debounceTimeout = setTimeout(() => {
-        fetch(`/app/lease-lookup?query=${encodeURIComponent(query)}`)
-            .then(res => res.json())
+        // Show searching status
+        showSearching();
+        
+        // Create new AbortController for this request
+        currentAbortController = new AbortController();
+        
+        fetch(`/app/lease-lookup?query=${encodeURIComponent(query)}`, {
+            signal: currentAbortController.signal
+        })
+            .then(res => {
+                if (res.status === 499) {
+                    // Request was cancelled, ignore the response
+                    throw new Error('Request cancelled');
+                }
+                return res.json();
+            })
             .then(data => {
                 cachedResults = data;
                 currentPostcode = fullPostcode;
                 renderResults(data);
             })
-            .catch(() => {
-                resultsDiv.classList.add('d-none');
-                resultsDiv.innerHTML = '';
+            .catch(error => {
+                // Only show error if it's not a cancellation
+                if (error.name !== 'AbortError' && error.message !== 'Request cancelled') {
+                    console.error('Search error:', error);
+                    hideSearching();
+                    resultsDiv.classList.add('d-none');
+                    resultsDiv.innerHTML = '';
+                }
             });
-    }, 1000); // 1 second debounce
+    }, 300); // Reduced debounce time to 300ms for better responsiveness
 });
 
 const addressForm = document.getElementById('address-search-form');
@@ -240,17 +324,42 @@ addressForm.addEventListener('submit', function(e) {
         resultsDiv.innerHTML = '';
         return;
     }
-    fetch(`/app/lease-lookup?query=${encodeURIComponent(query)}`)
-        .then(res => res.json())
+    
+    // Cancel any existing request
+    if (currentAbortController) {
+        currentAbortController.abort();
+    }
+    
+    // Show searching status
+    showSearching();
+    
+    // Create new AbortController for this request
+    currentAbortController = new AbortController();
+    
+    fetch(`/app/lease-lookup?query=${encodeURIComponent(query)}`, {
+        signal: currentAbortController.signal
+    })
+        .then(res => {
+            if (res.status === 499) {
+                // Request was cancelled, ignore the response
+                throw new Error('Request cancelled');
+            }
+            return res.json();
+        })
         .then(data => {
             cachedResults = data;
-            const postcodeMatch = query.match(/\b([A-Z]{1,2}\d{1,2}[A-Z]?)\s?(\d[A-Z]{2})\b/i);
+            const postcodeMatch = query.match(/([A-Z]{1,2}\d{1,2}[A-Z]?)\s*(\d[A-Z]{2})/i);
             currentPostcode = postcodeMatch ? `${postcodeMatch[1].toUpperCase()} ${postcodeMatch[2].toUpperCase()}` : '';
             renderResults(data);
         })
-        .catch(() => {
-            resultsDiv.classList.add('d-none');
-            resultsDiv.innerHTML = '';
+        .catch(error => {
+            // Only show error if it's not a cancellation
+            if (error.name !== 'AbortError' && error.message !== 'Request cancelled') {
+                console.error('Search error:', error);
+                hideSearching();
+                resultsDiv.classList.add('d-none');
+                resultsDiv.innerHTML = '';
+            }
         });
 });
 </script>

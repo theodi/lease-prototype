@@ -264,7 +264,7 @@ export async function lookup(req, res) {
                }
              },
              { $replaceRoot: { newRoot: '$lease' } },
-             { $limit: 20 },
+             { $limit: 50 },
              {
                $project: {
                  _id: 0,
@@ -323,7 +323,7 @@ export async function lookup(req, res) {
                  }
                },
                { $replaceRoot: { newRoot: '$lease' } },
-               { $limit: 20 },
+               { $limit: 50 },
                {
                  $project: {
                    _id: 0,
@@ -382,7 +382,7 @@ export async function lookup(req, res) {
                }
              },
              { $replaceRoot: { newRoot: '$lease' } },
-             { $limit: 20 },
+             { $limit: 50 },
              {
                $project: {
                  _id: 0,
@@ -416,7 +416,7 @@ export async function lookup(req, res) {
             }
           }
         },
-        { $limit: 20 },
+        { $limit: 50 },
         {
           $project: {
             _id: 0,
@@ -458,7 +458,7 @@ export async function lookup(req, res) {
               }
             }
           },
-          { $limit: 20 },
+          { $limit: 50 },
           {
             $project: {
               _id: 0,

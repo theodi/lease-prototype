@@ -82,7 +82,7 @@
                             class="list-group-item list-group-item-action d-flex justify-content-between align-items-start">
                             <div>
                             <strong><%= lease['Register Property Description'] || '' %></strong><br>
-                            <span><%= lease['Associated Property Description'] || '' %></span>
+                            <!--<span><%= lease['Associated Property Description'] || '' %></span>-->
                             </div>
                             <% if (lease.isStale) { %>
                             <span class="badge bg-warning text-dark ms-2" title="This lease has been updated since you last viewed it.">
@@ -103,7 +103,7 @@
                         <a href="/app/lease/<%= encodeURIComponent(lease.uid) %>"
                         class="list-group-item list-group-item-action">
                             <strong><%= lease.rpd || '' %></strong><br>
-                            <span><%= lease.apd || '' %></span>
+                            <!--<span><%= lease.apd || '' %></span>-->
                         </a>
                     <% }); %>
                 </div>
@@ -464,7 +464,7 @@ function renderResults(results) {
                 ${results.map(lease => `
                     <li class="list-group-item list-group-item-action" style="cursor:pointer" tabindex="0" role="button" aria-pressed="false" onclick="window.location='/app/lease/${encodeURIComponent(lease['Unique Identifier'])}'" onkeydown="if(event.key==='Enter'){window.location='/app/lease/${encodeURIComponent(lease['Unique Identifier'])}'}">
                         <strong>${lease['Register Property Description'] || ''}</strong><br>
-                        <span>${lease['Associated Property Description'] || ''}</span>
+                        <!--<span>${lease['Associated Property Description'] || ''}</span>-->
                     </li>
                 `).join('')}
             </ul>

@@ -17,9 +17,108 @@ const LeaseTermSchema = z.object({
 });
 
 // ─────────────────────────────────────────────
+// 🔧 Load Tracking and Concurrency Control
+// ─────────────────────────────────────────────
+
+// Load tracking state
+let activeSearches = 0;
+let queuedSearches = 0;
+let searchLatencies = [];
+let overloadMode = false;
+let lastLoadUpdate = Date.now();
+
+// Rate limiting for failed queries
+let failedQueries = new Map(); // query -> { count: number, lastAttempt: timestamp }
+
+// Concurrency semaphore
+let availableSlots = config.search.maxConcurrentSearches;
+
+// Update load metrics
+function updateLoadMetrics(latency) {
+  const now = Date.now();
+  
+  // Add latency to rolling window
+  searchLatencies.push({ latency, timestamp: now });
+  if (searchLatencies.length > config.search.loadTracking.latencyWindowSize) {
+    searchLatencies.shift();
+  }
+  
+  // Calculate p95 latency
+  const recentLatencies = searchLatencies
+    .filter(l => now - l.timestamp < config.search.loadTracking.latencyWindowMinutes * 60 * 1000)
+    .map(l => l.latency)
+    .sort((a, b) => a - b);
+  
+  const p95Latency = recentLatencies.length > 0 
+    ? recentLatencies[Math.floor(recentLatencies.length * 0.95)]
+    : 0;
+  
+  // Determine overload mode
+  overloadMode = activeSearches > config.search.overloadThreshold.activeSearches || 
+                 p95Latency > config.search.overloadThreshold.p95Latency;
+  
+  lastLoadUpdate = now;
+}
+
+// Get current load status
+export function getLoadStatus() {
+  const now = Date.now();
+  const recentLatencies = searchLatencies
+    .filter(l => now - l.timestamp < config.search.loadTracking.latencyWindowMinutes * 60 * 1000)
+    .map(l => l.latency);
+  
+  const p95Latency = recentLatencies.length > 0 
+    ? recentLatencies.sort((a, b) => a - b)[Math.floor(recentLatencies.length * 0.95)]
+    : 0;
+  
+  return {
+    active: activeSearches,
+    queued: queuedSearches,
+    availableSlots,
+    p95Latency,
+    overload: overloadMode,
+    lastUpdate: lastLoadUpdate
+  };
+}
+
+// ─────────────────────────────────────────────
 // 🔍 Lease Search
 // ─────────────────────────────────────────────
 export async function lookup(req, res) {
+  const startTime = Date.now();
+  const { query } = req.query;
+  
+  // Check rate limiting for failed queries
+  const now = Date.now();
+  const failedQuery = failedQueries.get(query);
+  if (failedQuery && failedQuery.count >= config.search.rateLimiting.maxFailedAttempts) {
+    const timeSinceLastAttempt = now - failedQuery.lastAttempt;
+    if (timeSinceLastAttempt < config.search.rateLimiting.failedQueryResetTime) {
+      return res.status(429).json({ 
+        error: 'Query rate limited', 
+        retryAfter: Math.ceil((config.search.rateLimiting.failedQueryResetTime - timeSinceLastAttempt) / 1000),
+        message: 'This search query has failed too many times. Please try a different search term or wait a moment.'
+      });
+    } else {
+      // Reset the failed query count after timeout
+      failedQueries.delete(query);
+    }
+  }
+  
+  // Check concurrency limit
+  if (availableSlots <= 0) {
+    queuedSearches++;
+    return res.status(429).json({ 
+      error: 'Server at capacity', 
+      retryAfter: 2,
+      message: 'Too many concurrent searches. Please try again in a moment.'
+    });
+  }
+  
+  // Acquire slot
+  availableSlots--;
+  activeSearches++;
+  
   // Create an AbortController for this request
   const abortController = new AbortController();
   
@@ -53,20 +152,48 @@ export async function lookup(req, res) {
       return res.status(403).json({ error: 'You have reached your daily search limit.' });
     }
 
-    const postcodeRegex = /\b([A-Z]{1,2}\d{1,2}[A-Z]?)\s*(\d[A-Z]{2})?\b/i;
-    const match = query.match(postcodeRegex);
+    // First try to match a complete postcode pattern (outward + 2 letters)
+    const completePostcodeRegex = /\b([A-Z]{1,2}\d{1,2}[A-Z]?)\s*(\d[A-Z]{2})\b/i;
+    let match = query.match(completePostcodeRegex);
+    let isCompletePostcode = false;
+    let searchTerm = null;
+    let outward = null;
+    let inward = null;
+    let isValidPartialPostcode = false;
+    let hasInvalidInward = false;
+    
+    if (match) {
+      isCompletePostcode = true;
+      outward = match[1].toUpperCase();
+      inward = match[2].toUpperCase();
+      searchTerm = outward + ' ' + inward;
+    } else {
+      // If no complete postcode, try partial postcode pattern
+      const partialPostcodeRegex = /\b([A-Z]{1,2}\d{1,2}[A-Z]?)\s*([A-Z0-9]*)?\b/i;
+      match = query.match(partialPostcodeRegex);
+      if (match) {
+        outward = match[1].toUpperCase();
+        inward = match[2] ? match[2].toUpperCase() : null;
+        searchTerm = outward + ' ' + inward;
+        isCompletePostcode = false;
+        // Check if this looks like a valid partial postcode (outward + partial inward that could be valid)
+        isValidPartialPostcode = !isCompletePostcode && inward && inward.length <= 2 && /^[A-Z0-9]+$/.test(inward);
+        //console.log('isValidPartialPostcode', isValidPartialPostcode);
+        
+        // Check if this is outward + something that's not a valid inward pattern
+        hasInvalidInward = inward && !/^[A-Z0-9]+$/.test(inward);
+        //console.log('hasInvalidInward', hasInvalidInward);
+      }
+    }
+    
     let results = [];
 
-    if (match) {
-      const outward = match[1].toUpperCase();
-      const inward = match[2] ? match[2].toUpperCase() : null;
-
-      if (inward) {
+    if (isCompletePostcode) {
         // ✅ Full postcode match — return all results with this postcode
-        //console.log('Full postcode match');
+        // console.log('Full postcode match');
         SearchAnalytics.incrementSearchType('full_postcode');
-        const fullPostcode = `${outward} ${inward}`;
-        
+        const fullPostcode = `${searchTerm}`;
+        // console.log(`Searching full postcode: "${fullPostcode}"`);
         // Check if request was aborted before database query
         if (abortController.signal.aborted) {
           return res.status(499).json({ error: 'Request cancelled' });
@@ -90,31 +217,185 @@ export async function lookup(req, res) {
               pc: 1
             }
           }
-        ], { signal: abortController.signal });
-      } else {
-        //console.log('Outer postcode only');
-        // 🟡 Outer postcode only — limit results to 5
-        SearchAnalytics.incrementSearchType('outer_postcode');
-        
-        // Check if request was aborted before database query
-        if (abortController.signal.aborted) {
-          return res.status(499).json({ error: 'Request cancelled' });
-        }
-        
-        results = await Lease.aggregate([
-          { $match: { pc: { $regex: `^${outward}`, $options: 'i' } } },
-          { $limit: 20 },
-          {
-            $project: {
-              _id: 0,
-              uid: 1,
-              rpd: 1,
-              apd: 1,
-              pc: 1
-            }
-          }
-        ], { signal: abortController.signal });
-      }
+        ], { 
+          signal: abortController.signal,
+          maxTimeMS: config.search.maxTimeMS
+        });
+    } else if (isValidPartialPostcode) {
+           //console.log('Partial postcode match');
+           // 🟡 Partial postcode — use Atlas Search for autocomplete
+           SearchAnalytics.incrementSearchType('partial_postcode');
+           
+           // Check if request was aborted before database query
+           if (abortController.signal.aborted) {
+             return res.status(499).json({ error: 'Request cancelled' });
+           }
+           
+           const searchTerm = query.trim().toUpperCase();
+           //console.log(`Searching partial postcode: "${searchTerm}"`);
+           
+           results = await Lease.aggregate([
+             {
+               $search: {
+                 index: 'postcode_autocomplete',
+                 compound: {
+                   must: [
+                     {
+                       text: {
+                         query: outward,
+                         path: 'pc'
+                       }
+                     },
+                     {
+                       wildcard: {
+                         query: `${searchTerm}*`,
+                         path: 'pc',
+                         allowAnalyzedField: true
+                       }
+                     }
+                   ]
+                 }
+               }
+             },
+             {
+               $group: {
+                 _id: '$uid',
+                 lease: { $first: '$$ROOT' }
+               }
+             },
+             { $replaceRoot: { newRoot: '$lease' } },
+             { $limit: 20 },
+             {
+               $project: {
+                 _id: 0,
+                 uid: 1,
+                 rpd: 1,
+                 apd: 1,
+                 pc: 1
+               }
+             }
+           ], { 
+             signal: abortController.signal,
+             maxTimeMS: config.search.maxTimeMS
+           });
+           
+    } else if (hasInvalidInward) {
+             //console.log('Outer postcode with invalid inward - treating as outward only');
+             // 🟡 Outer postcode with invalid inward — use outward only for postcode search
+             SearchAnalytics.incrementSearchType('outer_postcode');
+             
+             // Check if request was aborted before database query
+             if (abortController.signal.aborted) {
+               return res.status(499).json({ error: 'Request cancelled' });
+             }
+             
+             //console.log(`Searching outer postcode: "${outward}" (ignoring invalid inward: "${inward}")`);
+             
+             results = await Lease.aggregate([
+               {
+                 $search: {
+                   index: 'postcode_autocomplete',
+                   compound: {
+                     must: [
+                       {
+                         text: {
+                           query: outward,
+                           path: 'pc'
+                         }
+                       }
+                     ],
+                     filter: [
+                       {
+                         wildcard: {
+                           path: 'pc',
+                           query: `${outward}*`,
+                           allowAnalyzedField: true
+                         }
+                       }
+                     ]
+                   }
+                 }
+               },
+               {
+                 $group: {
+                   _id: '$uid',
+                   lease: { $first: '$$ROOT' }
+                 }
+               },
+               { $replaceRoot: { newRoot: '$lease' } },
+               { $limit: 20 },
+               {
+                 $project: {
+                   _id: 0,
+                   uid: 1,
+                   rpd: 1,
+                   apd: 1,
+                   pc: 1
+                 }
+               }
+             ], { 
+               signal: abortController.signal,
+               maxTimeMS: config.search.maxTimeMS
+             });
+           
+    } else if (outward && !inward) {
+           //console.log('Outer postcode only');
+           // 🟡 Outer postcode only — use regex for exact prefix matching
+           SearchAnalytics.incrementSearchType('outer_postcode');
+           
+           // Check if request was aborted before database query
+           if (abortController.signal.aborted) {
+             return res.status(499).json({ error: 'Request cancelled' });
+           }
+           
+           //console.log(`Searching outer postcode: "${outward}"`);
+           
+           results = await Lease.aggregate([
+             {
+               $search: {
+                 index: 'postcode_autocomplete',
+                 compound: {
+                   must: [
+                     {
+                       text: {
+                         query: outward,
+                         path: 'pc'
+                       }
+                     }
+                   ],
+                   filter: [
+                     {
+                       wildcard: {
+                         path: 'pc',
+                         query: `${outward}*`,
+                         allowAnalyzedField: true
+                       }
+                     }
+                   ]
+                 }
+               }
+             },
+             {
+               $group: {
+                 _id: '$uid',
+                 lease: { $first: '$$ROOT' }
+               }
+             },
+             { $replaceRoot: { newRoot: '$lease' } },
+             { $limit: 20 },
+             {
+               $project: {
+                 _id: 0,
+                 uid: 1,
+                 rpd: 1,
+                 apd: 1,
+                 pc: 1
+               }
+             }
+           ], { 
+             signal: abortController.signal,
+             maxTimeMS: config.search.maxTimeMS
+           });
     } else {
       //console.log('Autocomplete search');
       SearchAnalytics.incrementSearchType('autocomplete');
@@ -145,7 +426,10 @@ export async function lookup(req, res) {
             pc: 1
           }
         }
-      ], { signal: abortController.signal });
+      ], { 
+        signal: abortController.signal,
+        maxTimeMS: config.search.maxTimeMS
+      });
 
       const containsQuery = autoResults.some(r =>
         (r.rpd || '').toLowerCase().includes(query.toLowerCase()) ||
@@ -184,7 +468,10 @@ export async function lookup(req, res) {
               pc: 1
             }
           }
-        ], { signal: abortController.signal });
+        ], { 
+          signal: abortController.signal,
+          maxTimeMS: config.search.maxTimeMS
+        });
       }
     }
 
@@ -192,6 +479,18 @@ export async function lookup(req, res) {
     if (abortController.signal.aborted) {
       return res.status(499).json({ error: 'Request cancelled' });
     }
+
+    // Update load metrics
+    const latency = Date.now() - startTime;
+    updateLoadMetrics(latency);
+
+    // Add load headers to response
+    res.set({
+      'X-Search-Load': overloadMode ? 'high' : 'normal',
+      'X-Search-Active': activeSearches.toString(),
+      'X-Search-Available': availableSlots.toString(),
+      'X-Search-P95': Math.round(latency).toString()
+    });
 
     res.json(results.map(mapLeaseToVirtual));
   } catch (error) {
@@ -201,8 +500,69 @@ export async function lookup(req, res) {
       return res.status(499).json({ error: 'Request cancelled' });
     }
     
-    console.error('Lease lookup error:', error);
-    res.status(500).json({ error: 'Failed to lookup lease' });
+    // Handle MongoDB timeout errors (MaxTimeMSExpired)
+    if (error.code === 50 || error.codeName === 'MaxTimeMSExpired' || 
+        (error.message && error.message.includes('exceeded time limit'))) {
+      //console.log('Search query timed out (MaxTimeMSExpired)');
+      
+      // Track failed query
+      const failedQuery = failedQueries.get(query) || { count: 0, lastAttempt: 0 };
+      failedQuery.count++;
+      failedQuery.lastAttempt = Date.now();
+      failedQueries.set(query, failedQuery);
+      
+      // Clean up old failed queries
+      for (const [key, value] of failedQueries.entries()) {
+        if (Date.now() - value.lastAttempt > config.search.rateLimiting.failedQueryResetTime) {
+          failedQueries.delete(key);
+        }
+      }
+      
+      return res.status(408).json({ 
+        error: 'Search timeout',
+        message: 'Search took too long. This is likely due to your search being very gerenal, e.g. just the start of a postcode or a partial address. Please try a more specific query or a different search term, such as full postcode, or start or specific address, e.g. 112 Market Street.'
+      });
+    }
+    
+    // Handle MongoDB connection errors
+    if (error.name === 'MongoNetworkError' || error.message.includes('ECONNREFUSED')) {
+      console.error('Database connection error:', error);
+      return res.status(503).json({ 
+        error: 'Service temporarily unavailable',
+        message: 'The search service is temporarily unavailable. Please try again in a moment.'
+      });
+    }
+    
+    // Handle other MongoDB query errors
+    if (error.name === 'MongoError' || error.name === 'MongoServerError') {
+      //console.log('Database query error:', error.message || error.codeName || 'Unknown MongoDB error');
+      return res.status(503).json({ 
+        error: 'Search service error',
+        message: 'There was a problem with the search service. Please try again.'
+      });
+    }
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      //console.log('Validation error:', error.message);
+      return res.status(400).json({ 
+        error: 'Invalid search query',
+        message: 'Please check your search terms and try again.'
+      });
+    }
+    
+    //console.log('Lease lookup error:', error.message || 'Unknown error');
+    res.status(500).json({ 
+      error: 'Search failed',
+      message: 'An unexpected error occurred. Please try again or contact support if the problem persists.'
+    });
+  } finally {
+    // Always release slot and update metrics
+    availableSlots++;
+    activeSearches--;
+    if (queuedSearches > 0) {
+      queuedSearches--;
+    }
   }
 }
 

@@ -1,6 +1,6 @@
 {
   "name": "lease",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Email verification based access system",
   "main": "app.js",
   "type": "module",

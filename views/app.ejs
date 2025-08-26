@@ -13,6 +13,7 @@
                 <small>Data last updated: <%= formatter.format(updateDate) %></small>
             </div>
             <% } %>
+            <span id="load-indicator" class="badge bg-success">Normal</span>
         </div>
 
         <!-- ✅ User info and logout on the right -->
@@ -122,38 +123,266 @@ document.addEventListener('DOMContentLoaded', function () {
     if (input) input.focus();
 });
 
-// Cleanup on page unload
-window.addEventListener('beforeunload', function() {
-    if (currentAbortController) {
-        currentAbortController.abort();
-    }
-});
+// ─────────────────────────────────────────────
+// 🔧 Client-side Throttling and Load Management
+// ─────────────────────────────────────────────
 
-document.getElementById('address').addEventListener('input', function(e) {
-    this.value = this.value.toUpperCase().replace(/[^A-Z0-9 ]/g, '');
-});
-
-function lookupPostcode(postcode) {
-    document.getElementById('address').value = postcode;
-    document.querySelector('form').submit();
-}
-
+// Variable declarations
 let debounceTimeout;
 let cachedResults = [];
 let currentPostcode = '';
 let currentAbortController = null; // Track the current request
-const addressInput = document.getElementById('address');
-const resultsDiv = document.getElementById('results');
-const searchingDiv = document.getElementById('searching');
+let addressInput, resultsDiv, searchingDiv;
+
+// Initialize DOM elements when available
+function initializeElements() {
+    addressInput = document.getElementById('address');
+    resultsDiv = document.getElementById('results');
+    searchingDiv = document.getElementById('searching');
+}
+
+// Throttling configuration (will be loaded from server)
+let THROTTLE_CONFIG = {
+  maxConcurrentSearches: 2, // Default, will be updated from server
+  debounceMs: 300,
+  maxQueueSize: 3,
+  cacheTimeoutMs: 30000, // 30 seconds
+  loadCheckIntervalMs: 5000, // 5 seconds
+  adaptiveDebounce: {
+    normal: 300,
+    high: 600,
+    overload: 1000
+  }
+};
+
+// Search state management
+let activeSearches = 0;
+let searchQueue = [];
+let searchCache = new Map(); // Cache results by normalized query
+let loadStatus = { overload: false, active: 0, availableSlots: 50 };
+let loadCheckInterval = null;
+let retryTimeout = null;
+let retryCount = 0;
+let lastFailedQuery = '';
+const MAX_RETRIES = 2;
+const RETRY_DELAY = 3000; // 3 seconds
+
+// Cache management
+function getCachedResult(query) {
+  const normalizedQuery = query.trim().toUpperCase();
+  const cached = searchCache.get(normalizedQuery);
+  if (cached && Date.now() - cached.timestamp < THROTTLE_CONFIG.cacheTimeoutMs) {
+    return cached.data;
+  }
+  return null;
+}
+
+function setCachedResult(query, data) {
+  const normalizedQuery = query.trim().toUpperCase();
+  searchCache.set(normalizedQuery, {
+    data,
+    timestamp: Date.now()
+  });
+  
+  // Clean old cache entries
+  const now = Date.now();
+  for (const [key, value] of searchCache.entries()) {
+    if (now - value.timestamp > THROTTLE_CONFIG.cacheTimeoutMs) {
+      searchCache.delete(key);
+    }
+  }
+}
+
+// Load monitoring
+async function checkLoadStatus() {
+  try {
+    const response = await fetch('/app/search-load');
+    if (response.ok) {
+      loadStatus = await response.json();
+      updateLoadIndicator();
+    }
+  } catch (error) {
+    console.warn('Failed to check load status:', error);
+  }
+}
+
+// Load client configuration from server
+async function loadClientConfig() {
+  try {
+    const response = await fetch('/app/client-config');
+    if (response.ok) {
+      const serverConfig = await response.json();
+      // Update client config with server values
+      THROTTLE_CONFIG.maxConcurrentSearches = serverConfig.search.maxConcurrentSearches;
+      console.log('Loaded client config from server:', serverConfig);
+    }
+  } catch (error) {
+    console.warn('Failed to load client config, using defaults:', error);
+  }
+}
+
+// Cancel retry function
+function cancelRetry() {
+  if (retryTimeout) {
+    clearTimeout(retryTimeout);
+    retryTimeout = null;
+  }
+  retryCount = 0;
+  lastFailedQuery = '';
+  hideSearching();
+  if (resultsDiv) {
+    resultsDiv.classList.add('d-none');
+  }
+}
+
+function updateLoadIndicator() {
+  // Update UI based on load status
+  const loadIndicator = document.getElementById('load-indicator');
+  if (loadIndicator) {
+    if (loadStatus.overload) {
+      loadIndicator.className = 'badge bg-danger';
+      loadIndicator.textContent = 'Service status: High Load';
+    } else if (loadStatus.active > 20) {
+      loadIndicator.className = 'badge bg-warning text-dark';
+      loadIndicator.textContent = 'Service status: Busy';
+    } else {
+      loadIndicator.className = 'badge bg-success';
+      loadIndicator.textContent = 'Service status: Normal';
+    }
+  }
+}
+
+// Adaptive debouncing based on load
+function getAdaptiveDebounce() {
+  if (loadStatus.overload) {
+    return THROTTLE_CONFIG.adaptiveDebounce.overload;
+  } else if (loadStatus.active > 20) {
+    return THROTTLE_CONFIG.adaptiveDebounce.high;
+  }
+  return THROTTLE_CONFIG.adaptiveDebounce.normal;
+}
+
+// Queue management
+function processSearchQueue() {
+  if (searchQueue.length === 0 || activeSearches >= THROTTLE_CONFIG.maxConcurrentSearches) {
+    return;
+  }
+  
+  const nextSearch = searchQueue.shift();
+  executeSearch(nextSearch.query, nextSearch.resolve, nextSearch.reject);
+}
+
+function queueSearch(query) {
+  return new Promise((resolve, reject) => {
+    if (searchQueue.length >= THROTTLE_CONFIG.maxQueueSize) {
+      reject(new Error('Search queue full'));
+      return;
+    }
+    
+    searchQueue.push({ query, resolve, reject });
+    processSearchQueue();
+  });
+}
+
+// Execute actual search
+async function executeSearch(query, resolve, reject) {
+  activeSearches++;
+  
+  try {
+    // Check cache first
+    const cached = getCachedResult(query);
+    if (cached) {
+      resolve(cached);
+      return;
+    }
+    
+    // Cancel any existing request
+    if (currentAbortController) {
+      currentAbortController.abort();
+    }
+    
+    // Create new AbortController for this request
+    currentAbortController = new AbortController();
+    
+    const response = await fetch(`/app/lease-lookup?query=${encodeURIComponent(query)}`, {
+      signal: currentAbortController.signal
+    });
+    
+    if (response.status === 429) {
+      // Server at capacity
+      const errorData = await response.json();
+      reject(new Error(errorData.message || 'Server at capacity'));
+      return;
+    }
+    
+    if (response.status === 499) {
+      // Request cancelled
+      reject(new Error('Request cancelled'));
+      return;
+    }
+    
+    if (response.status === 408) {
+      // Search timeout
+      const errorData = await response.json();
+      reject(new Error(errorData.message || 'Search timed out'));
+      return;
+    }
+    
+    if (response.status === 503) {
+      // Service unavailable
+      const errorData = await response.json();
+      reject(new Error(errorData.message || 'Search service temporarily unavailable'));
+      return;
+    }
+    
+    if (response.status === 400) {
+      // Bad request
+      const errorData = await response.json();
+      reject(new Error(errorData.message || 'Invalid search query'));
+      return;
+    }
+    
+    if (!response.ok) {
+      // Try to get error message from response
+      try {
+        const errorData = await response.json();
+        reject(new Error(errorData.message || `Search failed (${response.status})`));
+      } catch (parseError) {
+        reject(new Error(`Search failed (${response.status})`));
+      }
+      return;
+    }
+    
+    const data = await response.json();
+    
+    // Cache the result
+    setCachedResult(query, data);
+    
+    resolve(data);
+  } catch (error) {
+    if (error.name === 'AbortError' || error.message === 'Request cancelled') {
+      reject(new Error('Request cancelled'));
+    } else {
+      reject(error);
+    }
+  } finally {
+    activeSearches--;
+    processSearchQueue(); // Process next queued search
+  }
+}
 
 // Show/hide searching status
 function showSearching() {
-    searchingDiv.classList.remove('d-none');
-    resultsDiv.classList.add('d-none');
+    if (searchingDiv && resultsDiv) {
+        searchingDiv.classList.remove('d-none');
+        resultsDiv.classList.add('d-none');
+    }
 }
 
 function hideSearching() {
-    searchingDiv.classList.add('d-none');
+    if (searchingDiv) {
+        searchingDiv.classList.add('d-none');
+    }
 }
 
 // Filter and render results client-side when we already matched a full postcode
@@ -214,6 +443,11 @@ function filterAndRenderResults(query) {
 function renderResults(results) {
     hideSearching(); // Hide searching status when showing results
     
+    if (!resultsDiv) {
+        console.warn('Results div not initialized');
+        return;
+    }
+    
     if (results && results.length > 0) {
         // Sort by Register Property Description (case-insensitive)
         results.sort((a, b) => {
@@ -245,14 +479,45 @@ function renderResults(results) {
     }
 }
 
-addressInput.addEventListener('input', function() {
-    clearTimeout(debounceTimeout);
-    const query = this.value.trim();
-    
-    // Always cancel any existing request immediately when input changes
+// Initialize load monitoring
+function initializeLoadMonitoring() {
+    checkLoadStatus(); // Initial check
+    loadCheckInterval = setInterval(checkLoadStatus, THROTTLE_CONFIG.loadCheckIntervalMs);
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
     if (currentAbortController) {
         currentAbortController.abort();
-        currentAbortController = null;
+    }
+    if (loadCheckInterval) {
+        clearInterval(loadCheckInterval);
+    }
+    if (retryTimeout) {
+        clearTimeout(retryTimeout);
+    }
+});
+
+// Input handler function
+function handleInput() {
+    if (!addressInput || !resultsDiv || !searchingDiv) {
+        console.warn('DOM elements not initialized');
+        return;
+    }
+    
+    clearTimeout(debounceTimeout);
+    const query = addressInput.value.trim();
+    
+    // Cancel any pending retry
+    if (retryTimeout) {
+        clearTimeout(retryTimeout);
+        retryTimeout = null;
+    }
+    
+    // Reset retry count for new searches
+    if (lastFailedQuery !== query) {
+        retryCount = 0;
+        lastFailedQuery = '';
     }
     
     if (query.length < 3) {
@@ -280,40 +545,120 @@ addressInput.addEventListener('input', function() {
         return;
     }
 
-    // Debounce the actual request but allow immediate cancellation
-    debounceTimeout = setTimeout(() => {
+    // Debounce the actual request with adaptive timing
+    const debounceTime = getAdaptiveDebounce();
+    debounceTimeout = setTimeout(async () => {
         // Show searching status
         showSearching();
         
-        // Create new AbortController for this request
-        currentAbortController = new AbortController();
-        
-        fetch(`/app/lease-lookup?query=${encodeURIComponent(query)}`, {
-            signal: currentAbortController.signal
-        })
-            .then(res => {
-                if (res.status === 499) {
-                    // Request was cancelled, ignore the response
-                    throw new Error('Request cancelled');
-                }
-                return res.json();
-            })
-            .then(data => {
+        try {
+            const data = await queueSearch(query);
                 cachedResults = data;
                 currentPostcode = fullPostcode;
                 renderResults(data);
-            })
-            .catch(error => {
-                // Only show error if it's not a cancellation
-                if (error.name !== 'AbortError' && error.message !== 'Request cancelled') {
-                    console.error('Search error:', error);
-                    hideSearching();
-                    resultsDiv.classList.add('d-none');
-                    resultsDiv.innerHTML = '';
+        } catch (error) {
+            console.error('Search error:', error);
+            if (error.message === 'Request cancelled') {
+                // Don't show error for cancelled requests
+                return;
+            }
+            
+            // Handle timeout errors with retry mechanism
+            if (error.message.includes('timed out') && retryCount < MAX_RETRIES && lastFailedQuery === query) {
+                retryCount++;
+                const timeLeft = RETRY_DELAY / 1000;
+                
+                hideSearching();
+                if (resultsDiv) {
+                    resultsDiv.classList.remove('d-none');
+                    resultsDiv.innerHTML = `
+                        <div class="alert alert-info" role="alert">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div class="d-flex align-items-center">
+                                    <span class="me-2">⏱️</span>
+                                    <div>
+                                        <strong>Search Timeout</strong><br>
+                                        Search took too long. Retrying in <span id="retry-countdown">${timeLeft}</span> seconds...
+                                        <br><small>Or change your search terms to try a different query.</small>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="cancelRetry()">
+                                    Cancel Retry
+                                </button>
+                            </div>
+                        </div>
+                    `;
                 }
-            });
-    }, 300); // Reduced debounce time to 300ms for better responsiveness
-});
+                
+                // Start countdown
+                let countdown = timeLeft;
+                const countdownElement = document.getElementById('retry-countdown');
+                const countdownInterval = setInterval(() => {
+                    countdown--;
+                    if (countdownElement) {
+                        countdownElement.textContent = countdown;
+                    }
+                    if (countdown <= 0) {
+                        clearInterval(countdownInterval);
+                    }
+                }, 1000);
+                
+                // Schedule retry
+                retryTimeout = setTimeout(() => {
+                    clearInterval(countdownInterval);
+                    if (addressInput && addressInput.value.trim().length >= 3 && addressInput.value.trim() === query) {
+                        console.log(`Retrying search (attempt ${retryCount}/${MAX_RETRIES})`);
+                        handleInput(); // Retry the search
+                    } else {
+                        console.log('Retry cancelled - query changed or too short');
+                        retryCount = 0;
+                        lastFailedQuery = '';
+                    }
+                }, RETRY_DELAY);
+                
+                return;
+            }
+            
+            // Reset retry count for non-timeout errors or different queries
+            if (lastFailedQuery !== query) {
+                retryCount = 0;
+                lastFailedQuery = query;
+            }
+            
+            hideSearching();
+            if (resultsDiv) {
+                resultsDiv.classList.remove('d-none');
+                
+                // Determine alert type based on error message
+                let alertClass = 'alert-danger';
+                let icon = '⚠️';
+                
+                if (error.message.includes('temporarily unavailable') || error.message.includes('service error')) {
+                    alertClass = 'alert-warning';
+                    icon = '🔄';
+                } else if (error.message.includes('capacity')) {
+                    alertClass = 'alert-info';
+                    icon = '⏱️';
+                } else if (error.message.includes('Invalid search')) {
+                    alertClass = 'alert-secondary';
+                    icon = '📝';
+                }
+                
+                resultsDiv.innerHTML = `
+                    <div class="alert ${alertClass}" role="alert">
+                        <div class="d-flex align-items-center">
+                            <span class="me-2">${icon}</span>
+                            <div>
+                                <strong>Search Error</strong><br>
+                                ${error.message || 'Search failed. Please try again.'}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+    }, debounceTime);
+}
 
 const addressForm = document.getElementById('address-search-form');
 addressForm.addEventListener('submit', function(e) {
@@ -325,41 +670,76 @@ addressForm.addEventListener('submit', function(e) {
         return;
     }
     
-    // Cancel any existing request
-    if (currentAbortController) {
-        currentAbortController.abort();
-    }
-    
     // Show searching status
     showSearching();
     
-    // Create new AbortController for this request
-    currentAbortController = new AbortController();
-    
-    fetch(`/app/lease-lookup?query=${encodeURIComponent(query)}`, {
-        signal: currentAbortController.signal
-    })
-        .then(res => {
-            if (res.status === 499) {
-                // Request was cancelled, ignore the response
-                throw new Error('Request cancelled');
-            }
-            return res.json();
-        })
-        .then(data => {
+    // Execute search directly (bypass queue for form submission)
+    executeSearch(query, (data) => {
             cachedResults = data;
-            const postcodeMatch = query.match(/([A-Z]{1,2}\d{1,2}[A-Z]?)\s*(\d[A-Z]{2})/i);
+        const postcodeMatch = query.match(/([A-Z]{1,2}\d{1,2}[A-Z]?)\s*(\d[A-Z]{2})/i);
             currentPostcode = postcodeMatch ? `${postcodeMatch[1].toUpperCase()} ${postcodeMatch[2].toUpperCase()}` : '';
             renderResults(data);
-        })
-        .catch(error => {
-            // Only show error if it's not a cancellation
-            if (error.name !== 'AbortError' && error.message !== 'Request cancelled') {
-                console.error('Search error:', error);
-                hideSearching();
-                resultsDiv.classList.add('d-none');
-                resultsDiv.innerHTML = '';
+    }, (error) => {
+        console.error('Search error:', error);
+        hideSearching();
+        
+        if (resultsDiv) {
+            resultsDiv.classList.remove('d-none');
+            
+            // Determine alert type based on error message
+            let alertClass = 'alert-danger';
+            let icon = '⚠️';
+            
+            if (error.message.includes('temporarily unavailable') || error.message.includes('service error')) {
+                alertClass = 'alert-warning';
+                icon = '🔄';
+            } else if (error.message.includes('timed out') || error.message.includes('capacity')) {
+                alertClass = 'alert-info';
+                icon = '⏱️';
+            } else if (error.message.includes('Invalid search')) {
+                alertClass = 'alert-secondary';
+                icon = '📝';
             }
+            
+            resultsDiv.innerHTML = `
+                <div class="alert ${alertClass}" role="alert">
+                    <div class="d-flex align-items-center">
+                        <span class="me-2">${icon}</span>
+                        <div>
+                            <strong>Search Error</strong><br>
+                            ${error.message || 'Search failed. Please try again.'}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
         });
 });
+
+// Initialize load monitoring when page loads
+document.addEventListener('DOMContentLoaded', async function () {
+    initializeElements();
+    
+    // Load configuration from server
+    await loadClientConfig();
+    
+    if (addressInput) {
+        addressInput.focus();
+        
+        // Add event listeners only after elements are initialized
+        addressInput.addEventListener('input', handleInput);
+    }
+    
+    initializeLoadMonitoring();
+});
+
+// Input formatting
+document.getElementById('address').addEventListener('input', function(e) {
+    this.value = this.value.toUpperCase().replace(/[^A-Z0-9 ]/g, '');
+});
+
+function lookupPostcode(postcode) {
+    document.getElementById('address').value = postcode;
+    document.querySelector('form').submit();
+}
 </script>

@@ -1,0 +1,22 @@
+{
+  "mappings": {
+    "dynamic": false,
+    "fields": {
+      "pc": {
+        "analyzer": "postcode_autocomplete",
+        "type": "string"
+      }
+    }
+  },
+  "analyzers": [
+    {
+      "charFilters": [],
+      "name": "postcode_autocomplete",
+      "tokenizer": {
+        "maxGram": 8,
+        "minGram": 2,
+        "type": "edgeGram"
+      }
+    }
+  ]
+}

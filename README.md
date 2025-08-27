@@ -71,7 +71,7 @@ The tool uses **MongoDB** and includes the following collections:
 | `BugReport`        | Stores submitted bug reports via the UI                            |
 | `User`             | User accounts, verification codes, and bookmarks                   |
 | `UserLoginStat`    | Daily, monthly, yearly login stats for usage tracking              |
-| `SearchAnalytics`  | Stores analytics on which search indexes are used                  |
+| `SearchAnalytics`  | Stores analytics on which search indexes are used and search type statistics                  |
 
 ---
 
@@ -116,9 +116,10 @@ node app.js
 
 ### 5. Set Up Search Indexes in MongoDB Atlas
 
-The application requires two search indexes for optimal performance:
+The application requires three search indexes for optimal performance:
 - `default`
 - `addr_autocomplete`
+- `postcode_autocomplete`
 
 These must be set up manually in **MongoDB Atlas**:
 
@@ -128,14 +129,14 @@ These must be set up manually in **MongoDB Atlas**:
 4. For each index:
    - Select the `leases` collection.
    - Choose **"JSON Editor"** mode.
-   - Copy the JSON definition from the corresponding file in `data/atlas-search-indexes/` (`default.json` or `addr_autocomplete.json`).
+   - Copy the JSON definition from the corresponding file in `data/atlas-search-indexes/` (`default.json`, `addr_autocomplete.json`, or `postcode_autocomplete.json`).
    - Paste it into the editor and create the index.
 
-Repeat for both `default` and `addr_autocomplete` indexes.
+Repeat for all three indexes: `default`, `addr_autocomplete`, and `postcode_autocomplete`.
 
 ## 🔍 Search Functionality
 
-The tool provides a powerful search experience by combining several techniques, including postcode matching, MongoDB Atlas Search, and client-side filtering.
+The tool provides a sophisticated search experience with intelligent postcode handling, MongoDB Atlas Search, and comprehensive performance monitoring.
 
 ### Search Logic
 
@@ -143,24 +144,44 @@ The search logic is tiered to provide the most relevant results efficiently:
 
 1.  **Postcode Search**: If the query is identified as a postcode:
     *   A **full postcode** (e.g., `SW1A 2AA`) triggers a database query that returns all leases matching that exact postcode.
+    *   A **partial postcode** (e.g., `SW1A 2`) uses the `postcode_autocomplete` index for autocomplete functionality.
     *   An **outer postcode** (e.g., `SW1A`) returns a limited number of results from that area to provide a quick sample.
 
 2.  **Text Search (Atlas Search)**: If the query is not a postcode, it's treated as a text search using MongoDB Atlas:
-    *   First, the `addr_autocomplete` index is used, this enables users to search for properties by address and the search index attempts to complete the users entry, so it indexes from the start of the address, e.g. `112 Manchester Road` will return a limited number of results that have this at the start of the address. 
+    *   First, the `addr_autocomplete` index is used for "search-as-you-type" functionality across multiple fields.
     *   If the results from the autocomplete index don't seem relevant (i.e., they don't contain the user's query text), the system falls back to the `default` search index which attempts to match the query to any part of the `Register Property Description` and `Associated Property Description` fields.
 
-### Client-Side Filtering
+### Performance Monitoring & Rate Limiting
 
-To enhance performance, when a user searches for a full postcode, all matching lease records are fetched and cached on the client side. If the user then refines their search by adding more text (e.g., adding a street name or flat number), the cached results are filtered directly in the browser. This avoids unnecessary calls to the backend and provides an instantaneous search experience.
+The search system includes comprehensive performance monitoring and rate limiting:
+
+*   **Concurrency Control**: Limits the number of concurrent searches to prevent server overload (configurable via `MAX_CONCURRENT_SEARCHES`).
+*   **Load Tracking**: Monitors active searches, queued searches, and P95 latency in real-time.
+*   **Overload Protection**: Automatically enters overload mode when thresholds are exceeded, returning appropriate error responses.
+*   **Failed Query Rate Limiting**: Tracks and limits repeated failed queries to prevent abuse.
+*   **Request Timeout**: Configurable timeout for search queries (default: 2.5 seconds).
+*   **Request Abort Handling**: Gracefully handles client disconnections and aborted requests.
+*   **Error Recovery**: Comprehensive error handling for database timeouts, connection issues, and validation errors.
 
 ### Atlas Search Indexes
 
-The application relies on two custom MongoDB Atlas Search indexes:
+The application relies on three custom MongoDB Atlas Search indexes:
 
-*   **`addr_autocomplete`**: A broad index configured for fast, "search-as-you-type" functionality across multiple fields. It's optimized for speed and is the first index to be queried.
-*   **`default`**: A more targeted index focused on the primary address fields (`Register Property Description`, `Associated Property Description`). It serves as a fallback to ensure relevant results when the autocomplete index is not specific enough.
+*   **`postcode_autocomplete`**: Specialized index for postcode autocomplete using edge n-gram tokenization (2-8 characters).
+*   **`addr_autocomplete`**: A broad index configured for fast, "search-as-you-type" functionality across multiple fields.
+*   **`default`**: A more targeted index focused on the primary address fields (`Register Property Description`, `Associated Property Description`).
 
 These indexes must be created manually in MongoDB Atlas as described in the **Initial Data Import** section.
+
+### Search Analytics
+
+The system automatically tracks search usage patterns to help optimize performance and understand user behavior:
+
+*   **Search Types**: Tracks which search method was used (full postcode, partial postcode, outer postcode, autocomplete, fallback).
+*   **Index Usage**: Monitors which Atlas Search indexes are being utilized most frequently.
+*   **Performance Metrics**: Records search latencies and success rates for different query types.
+
+This data is available in the admin dashboard and helps identify areas for optimization.
 
 ---
 
@@ -295,7 +316,25 @@ The model used for each extraction is also logged in the cache. This allows you 
 
 ### Daily limits
 
-The `DAILY_SEARCH_LIMIT` in `.env` controls how many new leases a user can view in 24 hours. Although in the interface it is shown as a search limit, it is linked to how many new leases a user views in a day. This design is intended to prevent users from scraping the data which is against the terms of use of the tool. 
+The `DAILY_SEARCH_LIMIT` in `.env` controls how many new leases a user can view in 24 hours. Although in the interface it is shown as a search limit, it is linked to how many new leases a user views in a day. This design is intended to prevent users from scraping the data which is against the terms of use of the tool.
+
+### Performance Monitoring Configuration
+
+The search system includes several configurable performance parameters in your `.env` file:
+
+```bash
+# Search concurrency and performance
+MAX_CONCURRENT_SEARCHES=50          # Maximum concurrent search requests
+SEARCH_MAX_TIME_MS=2500            # Maximum time for search queries (milliseconds)
+SEARCH_OVERLOAD_ACTIVE=40          # Active searches threshold for overload mode
+SEARCH_OVERLOAD_P95_LATENCY=2000   # P95 latency threshold for overload mode (milliseconds)
+SEARCH_LATENCY_WINDOW_SIZE=100     # Number of latency samples to track
+SEARCH_LATENCY_WINDOW_MINUTES=5    # Time window for latency calculations (minutes)
+SEARCH_MAX_FAILED_ATTEMPTS=3       # Maximum failed attempts per query before rate limiting
+SEARCH_FAILED_QUERY_RESET_TIME=60000 # Time to reset failed query count (milliseconds)
+```
+
+These settings help balance performance and resource usage based on your server capacity and expected load. 
 
 The following do not count towards the daily limit:
 

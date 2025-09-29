@@ -2,12 +2,12 @@
   <div class="card-body">
     <h1 class="card-title mb-3">What to do if you can't find your lease</h1>
     <p>
-      We understand it can be frustrating that you cannot find your lease.
-      Here are some things to check and consider.
+      We’re sorry that we were unable to find information from HM Land Registry (HMLR) on your lease. This can occur for a number of reasons. HMLR only registers leases for a term of more than seven years (with a few exceptions), so please check that this applies to your lease. If you have recently applied to register your lease, HMLR may not have updated its records yet. You can check HMLR’s latest processing times on its GOV.UK page <a href="https://www.gov.uk/guidance/hm-land-registry-processing-times" target="_blank" rel="noopener noreferrer">here</a>. If you have checked these points and believe your lease information should be available, see below the steps you can take to resolve this issue.
     </p>
 
     <h5 class="mt-4">1. Check the tool's data freshness</h5>
-    <p>On the <a href="/app">search page</a>, you'll see the date of the last successful monthly data import from HM Land Registry. This tells you when our dataset was last updated overall. It might be that you are looking for a lease that has recently been created or updated and it has not yet been include in the dataset available to us.</p>
+    <p>On the <a href="/app">search page</a>, you'll see the date of the last successful monthly data import from HM Land Registry. This tells you when our dataset was last updated overall.</p>
+    <p>If you have recently applied to register your leasehold property, please check HMLR's processing times page linked above. The relevant section for registering a new lease is ‘complex changes and new entries’.</p>
 
     <h5 class="mt-4">2. Check your lease agreement</h5>
     <p>The lease you received when purchasing the property contains all key details, including the lease length start date.</p>
@@ -19,12 +19,13 @@
     <p>Your freeholder or property management company should have up-to-date records regarding your lease. They can confirm the remaining lease term and other key information.</p>
 
     <h5 class="mt-4">5. Request Information from the Land Registry</h5>
-    <p>If you are unable to find information about your lease through this tool, you can
-      <a href="https://www.gov.uk/guidance/contact-hm-land-registry" target="_blank" rel="noopener noreferrer">
-        contact HM Land Registry<span class="visually-hidden">(opens in a new tab)</span>
+    <p>If you are unable to find information about your lease through this tool, you could contact HMLR directly through: 
+      <a href="https://customerhelp.landregistry.gov.uk/guide-page-external/?stepid=2b31bc48-eb96-eb11-b1ac-002248413956" target="_blank" rel="noopener noreferrer">
+        HM Land Reisitry contact us<span class="visually-hidden">(opens in a new tab)</span>
         <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
-      </a>
+      </a> or by calling its Customer Support Centre: English language 0300 006 0411 Welsh language 0300 006 0422. 
     .</p>
+    <p>HMLR property summaries and title registers are available to download on its ‘Search for land and property information’ page on GOV.UK. Customers can also apply to receive a copy of a document held by HMLR, such as a lease, using its form OC2. Please note, fees are applicable for downloading title registers and ordering copies of documents.</p>
   <div class="d-flex justify-content-between align-items-center mt-3">
     <a href="<%= uid ? `/app/lease/${uid}` : '/app' %>" class="btn btn-secondary">
         Back to <%= uid ? 'Lease' : 'Search' %>

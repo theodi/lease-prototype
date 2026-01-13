@@ -3,55 +3,11 @@
     console.log('App running in:', appMode);
 </script>
 <% if (!isDevelopment && !isTesting) { %>
-  <script src="https://cc.cdn.civiccomputing.com/9/cookieControl-9.x.min.js"></script>
-  <script>
-    var config = {
-      apiKey: '76434f698b5bff51d463ddcdf76409054d5a80c6',
-      product: 'PRO',
-      initialState: "NOTIFY",
-      position: "LEFT",
-      theme: "DARK",
-      text: {
-        title: 'This site uses cookies.',
-        intro: 'Some of these cookies are essential, while others help us to improve your experience by providing insights into how the site is being used.',
-        necessaryTitle: 'Necessary Cookies',
-        necessaryDescription: 'Necessary cookies enable core functionality. The website cannot function properly without these cookies, and can only be disabled by changing your browser preferences.',
-        thirdPartyTitle: 'Warning: Some cookies require your attention',
-        thirdPartyDescription: 'Consent for the following cookies could not be automatically revoked. Please follow the link(s) below to opt out manually.'
-      },
-      statement: {
-        description: 'For more information visit our',
-        name: 'Privacy policy and cookies',
-        url: 'https://www.lease-advice.org/privacy-policy-and-cookies/',
-        updated: ''
-      },
-      optionalCookies: [
-        {
-          name: 'analytics',
-          label: 'Analytical Cookies',
-          description: 'Analytical cookies help us to improve our website by collecting and reporting information on its usage.',
-          cookies: ['_ga', '_ga_*'],
-          onAccept: function () {
-            // Load GA4
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', 'G-3Q4LMZ3NZG');
-
-            var script = document.createElement('script');
-            script.setAttribute('async', '');
-            script.src = 'https://www.googletagmanager.com/gtag/js?id=G-3Q4LMZ3NZG';
-            document.head.appendChild(script);
-          },
-          onRevoke: function () {
-            // Remove GA4 cookies — optional manual cleanup
-            document.cookie = '_ga=; Max-Age=0; path=/;';
-          },
-          lawfulBasis: 'legitimate interest'
-        }
-      ]
-    };
-
-    CookieControl.load(config);
-  </script>
+  <!-- Google Tag Manager -->
+  <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+  'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+  })(window,document,'script','dataLayer','GTM-MG2Q88');</script>
+  <!-- End Google Tag Manager -->
 <% } %>

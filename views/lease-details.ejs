@@ -74,7 +74,10 @@ const fieldDescriptions = {
                   <% const isLatest = !multipleLeases && idx === 0; %>
                     <div class="accordion-item"
                         data-lease-id="<%= leaseId %>"
-                        data-reg-order="<%= lease['Reg Order'] || 0 %>">
+                        data-reg-order="<%= lease['Reg Order'] || 0 %>"
+                        data-start-date="<%= lease['Start Date'] || '' %>"
+                        data-expiry-date="<%= lease['Expiry Date'] || '' %>"
+                        data-tenure-years="<%= lease['Tenure Years'] || '' %>">
                         <h2 class="accordion-header" id="heading-<%= leaseId %>">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-<%= leaseId %>" aria-expanded="false" aria-controls="collapse-<%= leaseId %>">
                                 <%= lease['Associated Property Description'] %>
@@ -223,6 +226,33 @@ const fieldDescriptions = {
 
     const derivedLeases = new Map();
 
+    // Helper function to format remaining term
+    function formatRemainingTerm(expiryDate) {
+      const now = new Date();
+      const expiry = new Date(expiryDate);
+      let diff = expiry - now;
+      if (diff <= 0) return 'Expired';
+
+      let years = expiry.getFullYear() - now.getFullYear();
+      let months = expiry.getMonth() - now.getMonth();
+      let days = expiry.getDate() - now.getDate();
+
+      if (days < 0) {
+        months--;
+        days += new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      }
+      if (months < 0) {
+        years--;
+        months += 12;
+      }
+
+      const parts = [];
+      if (years) parts.push(`${years} Year${years !== 1 ? 's' : ''}`);
+      if (months) parts.push(`${months} Month${months !== 1 ? 's' : ''}`);
+      if (days || parts.length === 0) parts.push(`${days} Day${days !== 1 ? 's' : ''}`);
+      return parts.join(' ');
+    }
+
     const leaseElements = document.querySelectorAll('[id^="remaining-term-"]');
     await Promise.all(
       Array.from(leaseElements).map(async (el) => {
@@ -230,6 +260,30 @@ const fieldDescriptions = {
         const container = document.querySelector(`[data-lease-id="${leaseId}"]`);
         const regOrder = parseInt(container?.dataset.regOrder) || 0;
 
+        // First, check if pre-parsed data exists from the model
+        const preExpiryDate = container?.dataset.expiryDate;
+        
+        if (preExpiryDate) {
+          // Use pre-parsed data from the database
+          const remainingTerm = formatRemainingTerm(preExpiryDate);
+          
+          document.getElementById(`remaining-term-${leaseId}`).textContent = remainingTerm;
+          document.getElementById(`expiry-date-${leaseId}`).textContent = new Date(preExpiryDate).toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric',
+          });
+          document.getElementById(`derived-by-${leaseId}`).innerHTML = 
+            '<span data-bs-toggle="tooltip" title="Pre-parsed lease term data from database">💾 Database</span>';
+
+          derivedLeases.set(leaseId, {
+            expiryDate: new Date(preExpiryDate),
+            regOrder,
+          });
+          return;
+        }
+
+        // Fall back to AJAX call if no pre-parsed data
         const termText = container.querySelector('tr[data-field="Term"] td')?.textContent?.trim();
 
         if (!termText) return;

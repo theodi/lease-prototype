@@ -214,7 +214,10 @@ export async function lookup(req, res) {
               uid: 1,
               rpd: 1,
               apd: 1,
-              pc: 1
+              pc: 1,
+              start_date: 1,
+              expiry_date: 1,
+              tenure_years: 1
             }
           }
         ], { 
@@ -271,7 +274,10 @@ export async function lookup(req, res) {
                  uid: 1,
                  rpd: 1,
                  apd: 1,
-                 pc: 1
+                 pc: 1,
+                 start_date: 1,
+                 expiry_date: 1,
+                 tenure_years: 1
                }
              }
            ], { 
@@ -330,7 +336,10 @@ export async function lookup(req, res) {
                    uid: 1,
                    rpd: 1,
                    apd: 1,
-                   pc: 1
+                   pc: 1,
+                   start_date: 1,
+                   expiry_date: 1,
+                   tenure_years: 1
                  }
                }
              ], { 
@@ -389,7 +398,10 @@ export async function lookup(req, res) {
                  uid: 1,
                  rpd: 1,
                  apd: 1,
-                 pc: 1
+                 pc: 1,
+                 start_date: 1,
+                 expiry_date: 1,
+                 tenure_years: 1
                }
              }
            ], { 
@@ -423,7 +435,10 @@ export async function lookup(req, res) {
             uid: 1,
             rpd: 1,
             apd: 1,
-            pc: 1
+            pc: 1,
+            start_date: 1,
+            expiry_date: 1,
+            tenure_years: 1
           }
         }
       ], { 
@@ -465,7 +480,10 @@ export async function lookup(req, res) {
               uid: 1,
               rpd: 1,
               apd: 1,
-              pc: 1
+              pc: 1,
+              start_date: 1,
+              expiry_date: 1,
+              tenure_years: 1
             }
           }
         ], { 

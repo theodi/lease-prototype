@@ -13,7 +13,10 @@ const leaseSchema = new mongoose.Schema({
   dol: String,
   term: String,
   aci: String,
-  pc: { type: String, index: true }
+  pc: { type: String, index: true },
+  start_date: Date,
+  expiry_date: Date,
+  tenure_years: Number
 }, {
   timestamps: true,
   toJSON: { virtuals: true },
@@ -59,9 +62,24 @@ leaseSchema.virtual('Alienation Clause Indicator').get(function () {
 leaseSchema.virtual('Postcode').get(function () {
   return this.pc;
 });
+leaseSchema.virtual('Start Date').get(function () {
+  if (!this.start_date) return null;
+  const d = new Date(this.start_date);
+  return d.toISOString().split('T')[0]; // Returns YYYY-MM-DD
+});
+leaseSchema.virtual('Expiry Date').get(function () {
+  if (!this.expiry_date) return null;
+  const d = new Date(this.expiry_date);
+  return d.toISOString().split('T')[0]; // Returns YYYY-MM-DD
+}); 
+leaseSchema.virtual('Tenure Years').get(function () {
+  return this.tenure_years;
+});
 
 // Static method to remap keys using virtual aliases
 leaseSchema.statics.remapLeases = function (leases) {
+  const formatDate = (d) => d ? new Date(d).toISOString().split('T')[0] : null;
+  
   const mapOne = lease => ({
     '_id': lease._id,
     'Unique Identifier': lease.uid,
@@ -76,7 +94,10 @@ leaseSchema.statics.remapLeases = function (leases) {
     'Date of Lease': lease.dol,
     'Term': lease.term,
     'Alienation Clause Indicator': lease.aci,
-    'Postcode': lease.pc
+    'Postcode': lease.pc,
+    'Start Date': formatDate(lease.start_date),
+    'Expiry Date': formatDate(lease.expiry_date),
+    'Tenure Years': lease.tenure_years
   });
 
   if (Array.isArray(leases)) return leases.map(mapOne);

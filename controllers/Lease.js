@@ -1,4 +1,5 @@
 import Lease from '../models/Lease.js';
+import LeaseExt from '../models/LeaseExt.js';
 import User from '../models/User.js';
 import LeaseViewStat from '../models/LeaseViewStat.js';
 import LeaseTracker from '../models/LeaseTracker.js';
@@ -719,7 +720,32 @@ export async function show(req, res) {
       return res.status(404).render('error', { error: 'No leases found for this Unique Identifier' });
     }
 
-    const leases = Lease.remapLeases(rawleases);
+    const remappedLeases = Lease.remapLeases(rawleases);
+
+    // Get all Lease _ids and fetch corresponding LeaseExt data
+    const leaseIds = rawleases.map(l => l._id);
+    const rawLeaseExts = await LeaseExt.find({ lease_id: { $in: leaseIds } }).lean();
+
+    // Create a map of lease_id to remapped LeaseExt data
+    const remappedExts = LeaseExt.remapLeases(rawLeaseExts);
+    const extMap = new Map();
+    for (const ext of remappedExts) {
+      extMap.set(ext.lease_id.toString(), ext);
+    }
+
+    // Remap leases and merge with LeaseExt data
+    const leases = remappedLeases.map((lease, idx) => {
+      const extData = extMap.get(rawleases[idx]._id.toString());
+      if (extData) {
+        return {
+          ...lease,
+          'Start Date': extData['Start Date'],
+          'Expiry Date': extData['Expiry Date'],
+          'Tenure Years': extData['Tenure Years']
+        };
+      }
+      return lease;
+    });
 
     const canBookmark = !isBookmarked && user.bookmarks.length < config.bookmarks.limit;
 

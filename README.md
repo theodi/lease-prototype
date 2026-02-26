@@ -64,6 +64,7 @@ The tool uses **MongoDB** and includes the following collections:
 | Collection         | Description                                                        |
 |--------------------|--------------------------------------------------------------------|
 | `Lease`            | Stores lease records, imported from GOV.UK CSV data                |
+| `LeaseExt`         | Stores enriched lease data with pre-calculated start/expiry dates, tenure years and geolocation |
 | `LeaseTermCache`   | Caches parsed lease term strings, start/end dates, and model used  |
 | `LeaseTracker`     | Tracks changes to leases across updates                            |
 | `LeaseUpdateLog`   | Stores update version info and summaries (add/delete/etc)          |
@@ -270,7 +271,7 @@ The branding is currently set to match **LEASE (The Leasehold Advisory Service)*
 
 The tool implements a cookie consent banner using **Cookie Control**. The configuration can be found in `views/partials/cookie-control.ejs`. It is currently set up with **Google Analytics (GA4)** as the only optional, analytics cookie. The cookie banner is disabled in development and testing environments.
 
-## Just in time lease term calculations using AI
+## Lease term calculations
 
 In the source data, the lease term is provided as a free text field, which can vary greatly in format and complexity. Examples include:
 
@@ -283,13 +284,23 @@ In the source data, the lease term is provided as a free text field, which can v
 - `From 3rd December 1950 to the last day of 2023 inclusive.`
 - `From 00:01 on 1 January 2020 to 23:59 on 31 December 2020.`
 
-These descriptions can be ambiguous or require contextual understanding to interpret correctly. The system first attempts to match the lease term string against three common regular expressions that cover the majority of standard cases. If a match is found, the start and end dates are extracted directly.
+These descriptions can be ambiguous or require contextual understanding to interpret correctly. When displaying lease details, the system uses a tiered approach to determine the lease expiry date:
 
-For more complex or ambiguous cases that do not match these patterns, the AI model is used to extrapolate the lease start and end dates, returning them as ISO standard date objects. These dates are then used to calculate the lease length in years, enabling consistent searching, filtering, and analysis.
+1. **Pre-calculated data (LeaseExt)**: The system first checks the `LeaseExt` collection for pre-calculated expiry dates. This collection stores enriched lease data with start dates, expiry dates, and tenure years that have been calculated in advance. If found, this data is used directly without any additional processing.
 
-To optimize performance and avoid redundant AI calls, the results of AI-based parsing are cached in the `LeaseTermCache` collection (see `models/LeaseTermCache.js`). This ensures that once a lease term string has been processed, its parsed results are reused for future queries.
+2. **Cached results (LeaseTermCache)**: If no pre-calculated data exists, the system checks the `LeaseTermCache` for previously parsed results from the lease term string.
 
-The model used for each extraction is also logged in the cache. This allows you to evaluate which model derived which results, making it possible to compare and benchmark different models. However, there is no built-in feature to invalidate or remove old cache entries if you change the model. If you wish to clear out cached results from previous models, you will need to do so manually.
+3. **Pattern matching**: If not cached, the system attempts to match the lease term string against common regular expressions that cover the majority of standard cases. If a match is found, the start and end dates are extracted directly.
+
+4. **AI parsing**: For complex or ambiguous cases that do not match patterns, the AI model is used to extrapolate the lease start and end dates, returning them as ISO standard date objects. These results are then cached in `LeaseTermCache` for future queries.
+
+The `LeaseExt` collection (see `models/LeaseExt.js`) stores:
+- `lid`: Reference to the parent Lease document
+- `st`: Start date of the lease
+- `exp`: Expiry date of the lease
+- `ty`: Tenure length in years
+
+The model used for each AI extraction is logged in the cache. This allows you to evaluate which model derived which results, making it possible to compare and benchmark different models. However, there is no built-in feature to invalidate or remove old cache entries if you change the model. If you wish to clear out cached results from previous models, you will need to do so manually.
 
 **Warning:** The lease length and remaining term shown in the tool are derived either by regular expression matching or by AI-based parsing of the original lease term string. These methods can sometimes produce incorrect results, especially for ambiguous or complex term descriptions. Users should always check the original lease term string (which is displayed alongside any derived values) and, if in doubt, seek clarification from the official source or a qualified professional. The derived values are provided for convenience only and should not be solely relied upon for legal or financial decisions.
 

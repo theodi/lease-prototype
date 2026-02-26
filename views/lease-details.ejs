@@ -74,7 +74,8 @@ const fieldDescriptions = {
                   <% const isLatest = !multipleLeases && idx === 0; %>
                     <div class="accordion-item"
                         data-lease-id="<%= leaseId %>"
-                        data-reg-order="<%= lease['Reg Order'] || 0 %>">
+                        data-reg-order="<%= lease['Reg Order'] || 0 %>"
+                        data-expiry-date="<%= lease['Expiry Date'] || '' %>">
                         <h2 class="accordion-header" id="heading-<%= leaseId %>">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-<%= leaseId %>" aria-expanded="false" aria-controls="collapse-<%= leaseId %>">
                                 <%= lease['Associated Property Description'] %>
@@ -223,6 +224,32 @@ const fieldDescriptions = {
 
     const derivedLeases = new Map();
 
+    // Helper function to calculate remaining term from expiry date
+    function calculateRemainingTerm(expiryDate) {
+      const now = new Date();
+      let diff = expiryDate - now;
+      if (diff <= 0) return 'Expired';
+
+      let years = expiryDate.getFullYear() - now.getFullYear();
+      let months = expiryDate.getMonth() - now.getMonth();
+      let days = expiryDate.getDate() - now.getDate();
+
+      if (days < 0) {
+        months--;
+        days += new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      }
+      if (months < 0) {
+        years--;
+        months += 12;
+      }
+
+      const parts = [];
+      if (years) parts.push(`${years} Year${years !== 1 ? 's' : ''}`);
+      if (months) parts.push(`${months} Month${months !== 1 ? 's' : ''}`);
+      if (days || parts.length === 0) parts.push(`${days} Day${days !== 1 ? 's' : ''}`);
+      return parts.join(' ');
+    }
+
     const leaseElements = document.querySelectorAll('[id^="remaining-term-"]');
     await Promise.all(
       Array.from(leaseElements).map(async (el) => {
@@ -230,6 +257,31 @@ const fieldDescriptions = {
         const container = document.querySelector(`[data-lease-id="${leaseId}"]`);
         const regOrder = parseInt(container?.dataset.regOrder) || 0;
 
+        // Check if we have pre-calculated expiry date from LeaseExt
+        const preCalculatedExpiry = container?.dataset.expiryDate;
+
+        if (preCalculatedExpiry) {
+          // Use the pre-calculated expiry date directly
+          const expiryDate = new Date(preCalculatedExpiry);
+          const remainingTerm = calculateRemainingTerm(expiryDate);
+
+          document.getElementById(`remaining-term-${leaseId}`).textContent = remainingTerm;
+          document.getElementById(`expiry-date-${leaseId}`).textContent = expiryDate.toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric',
+          });
+          document.getElementById(`derived-by-${leaseId}`).innerHTML =
+            '<span data-bs-toggle="tooltip" title="Pre-calculated from external lease data">💾 Database</span>';
+
+          derivedLeases.set(leaseId, {
+            expiryDate,
+            regOrder,
+          });
+          return;
+        }
+
+        // Fall back to AJAX call if no pre-calculated expiry date
         const termText = container.querySelector('tr[data-field="Term"] td')?.textContent?.trim();
 
         if (!termText) return;

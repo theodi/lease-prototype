@@ -724,7 +724,7 @@ export async function show(req, res) {
 
     // Get all Lease _ids and fetch corresponding LeaseExt data
     const leaseIds = rawleases.map(l => l._id);
-    const rawLeaseExts = await LeaseExt.find({ lease_id: { $in: leaseIds } }).lean();
+    const rawLeaseExts = await LeaseExt.find({ lid: { $in: leaseIds } }).lean();
 
     // Create a map of lease_id to remapped LeaseExt data
     const remappedExts = LeaseExt.remapLeases(rawLeaseExts);

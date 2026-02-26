@@ -1,10 +1,10 @@
 import mongoose from 'mongoose';
 
 const leaseExtSchema = new mongoose.Schema({
-  lease_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Lease', index: true },
-  start_date: Date,
-  expiry_date: Date,
-  tenure_years: Number
+  lid: { type: mongoose.Schema.Types.ObjectId, ref: 'Lease', index: true },
+  st: Date,
+  exp: Date,
+  ty: Number
 }, {
   timestamps: true,
   collection: 'leasesext',
@@ -13,17 +13,17 @@ const leaseExtSchema = new mongoose.Schema({
 });
 
 leaseExtSchema.virtual('Start Date').get(function () {
-  if (!this.start_date) return null;
-  const d = new Date(this.start_date);
+  if (!this.st) return null;
+  const d = new Date(this.st);
   return d.toISOString().split('T')[0]; // Format as 'YYYY-MM-DD'
 });
 leaseExtSchema.virtual('Expiry Date').get(function () {
-  if (!this.expiry_date) return null;
-  const d = new Date(this.expiry_date);
+  if (!this.exp) return null;
+  const d = new Date(this.exp);
   return d.toISOString().split('T')[0]; // Returns YYYY-MM-DD
 });
 leaseExtSchema.virtual('Tenure Years').get(function () {
-  return this.tenure_years;
+  return this.ty;
 });
 
 // Static method to remap keys using virtual aliases
@@ -36,10 +36,10 @@ leaseExtSchema.statics.remapLeases = function (leases) {
 
   const mapOne = lease => ({
     '_id': lease._id,
-    'lease_id': lease.lease_id,
-    'Start Date': formatDate(lease.start_date),
-    'Expiry Date': formatDate(lease.expiry_date),
-    'Tenure Years': lease.tenure_years
+    'lease_id': lease.lid,
+    'Start Date': formatDate(lease.st),
+    'Expiry Date': formatDate(lease.exp),
+    'Tenure Years': lease.ty
   });
 
   if (Array.isArray(leases)) return leases.map(mapOne);
